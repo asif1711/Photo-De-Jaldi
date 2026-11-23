@@ -4,13 +4,13 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useColorScheme';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { Header } from '@/components/common/Header';
 import { Card } from '@/components/common/Card';
 import { Badge, BadgeVariant } from '@/components/common/Badge';
@@ -23,7 +23,6 @@ import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
 
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -69,15 +68,15 @@ export default function HistoryScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: tokens.color.bg }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => fetchHistory(true)}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
+          tintColor={tokens.color.primaryText}
+          colors={[tokens.color.primaryText]}
         />
       }>
       <Header
@@ -87,16 +86,16 @@ export default function HistoryScreen() {
 
       {/* Rules Explanation Card */}
       <Card variant="subtle" style={styles.rulesCard}>
-        <Text style={[styles.rulesTitle, { color: colors.text }]}>Deletion Triggers</Text>
+        <Text style={[styles.rulesTitle, { color: tokens.color.text }]}>Deletion Triggers</Text>
         <View style={styles.ruleItem}>
-          <Ionicons name="checkmark-done-circle" size={16} color={colors.status.active} />
-          <Text style={[styles.ruleText, { color: colors.textSecondary }]}>
+          <Ionicons name="checkmark-done-circle" size={16} color={tokens.color.primaryText} />
+          <Text style={[styles.ruleText, { color: tokens.color.textMuted }]}>
             Condition 1: Every invited member completes bucket download.
           </Text>
         </View>
         <View style={styles.ruleItem}>
-          <Ionicons name="timer" size={16} color={colors.status.expired} />
-          <Text style={[styles.ruleText, { color: colors.textSecondary }]}>
+          <Ionicons name="timer" size={16} color={tokens.color.danger} />
+          <Text style={[styles.ruleText, { color: tokens.color.textMuted }]}>
             Condition 2: Bucket reaches its configured expiry date.
           </Text>
         </View>
@@ -104,7 +103,7 @@ export default function HistoryScreen() {
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Past Buckets</Text>
+        <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Past Buckets</Text>
         {!loading && (
           <Badge label={`${buckets.length} Records`} variant="neutral" />
         )}
@@ -114,10 +113,10 @@ export default function HistoryScreen() {
       {errorMessage && (
         <Card style={styles.errorCard}>
           <View style={styles.errorRow}>
-            <Ionicons name="alert-circle-outline" size={24} color={colors.danger} />
+            <Ionicons name="alert-circle-outline" size={24} color={tokens.color.danger} />
             <View style={styles.errorTextContainer}>
-              <Text style={[styles.errorTitle, { color: colors.danger }]}>Failed to load history</Text>
-              <Text style={[styles.errorDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.errorTitle, { color: tokens.color.danger }]}>Failed to load history</Text>
+              <Text style={[styles.errorDescription, { color: tokens.color.textMuted }]}>
                 {errorMessage}
               </Text>
             </View>
@@ -134,8 +133,8 @@ export default function HistoryScreen() {
       {/* Loading State */}
       {loading && !refreshing && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          <ActivityIndicator size="large" color={tokens.color.primaryText} />
+          <Text style={[styles.loadingText, { color: tokens.color.textMuted }]}>
             Loading bucket history...
           </Text>
         </View>
@@ -145,7 +144,7 @@ export default function HistoryScreen() {
       {!loading && !errorMessage && buckets.length === 0 && (
         <Card variant="subtle">
           <EmptyState
-            icon={<Ionicons name="time-outline" size={36} color={colors.textSecondary} />}
+            icon={<Ionicons name="time-outline" size={36} color={tokens.color.textMuted} />}
             title="No Past Records"
             description="Completed and expired buckets will appear here once their lifecycle has concluded."
           />
@@ -168,9 +167,9 @@ export default function HistoryScreen() {
                     <Ionicons
                       name={statusInfo.variant === 'completed' ? 'archive-outline' : 'time-outline'}
                       size={18}
-                      color={statusInfo.variant === 'completed' ? colors.status.completed : colors.status.expired}
+                      color={statusInfo.variant === 'completed' ? tokens.color.info : tokens.color.danger}
                     />
-                    <Text style={[styles.historyName, { color: colors.text }]} numberOfLines={1}>
+                    <Text style={[styles.historyName, { color: tokens.color.text }]} numberOfLines={1}>
                       {bucket.name}
                     </Text>
                   </View>
@@ -178,12 +177,12 @@ export default function HistoryScreen() {
                 </View>
 
                 {bucket.description ? (
-                  <Text style={[styles.historyDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+                  <Text style={[styles.historyDescription, { color: tokens.color.textMuted }]} numberOfLines={2}>
                     {bucket.description}
                   </Text>
                 ) : null}
 
-                <Text style={[styles.historyMeta, { color: colors.textSecondary }]}>
+                <Text style={[styles.historyMeta, { color: tokens.color.textMuted }]}>
                   Created: {formatDate(bucket.created_at)} • Expired/Completed: {formatDate(bucket.expires_at)}
                 </Text>
               </Card>

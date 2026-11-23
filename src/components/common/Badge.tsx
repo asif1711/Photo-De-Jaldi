@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/hooks/useColorScheme';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 export type BadgeVariant = 'active' | 'completed' | 'expired' | 'pending' | 'neutral';
@@ -11,35 +12,33 @@ interface BadgeProps {
 }
 
 export function Badge({ label, variant = 'neutral' }: BadgeProps) {
-  const { colors } = useTheme();
-
   const getVariantStyles = () => {
     switch (variant) {
       case 'active':
         return {
-          bg: colors.status.activeBg,
-          text: colors.status.active,
+          bg: tokens.color.primarySoft,
+          text: tokens.color.primaryText,
         };
       case 'completed':
         return {
-          bg: colors.status.completedBg,
-          text: colors.status.completed,
+          bg: tokens.color.infoSoft,
+          text: tokens.color.info,
         };
       case 'expired':
         return {
-          bg: colors.status.expiredBg,
-          text: colors.status.expired,
+          bg: tokens.color.dangerSoft,
+          text: tokens.color.danger,
         };
       case 'pending':
         return {
-          bg: colors.status.pendingBg,
-          text: colors.status.pending,
+          bg: tokens.color.warningSoft,
+          text: tokens.color.warning,
         };
       case 'neutral':
       default:
         return {
-          bg: colors.surfaceSubtle,
-          text: colors.textSecondary,
+          bg: tokens.color.surfaceRaised,
+          text: tokens.color.textMuted,
         };
     }
   };

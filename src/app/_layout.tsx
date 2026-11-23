@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { tokens } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,9 +49,9 @@ function NavigationRoot() {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#0B0E0C',
+          backgroundColor: tokens.color.bg,
         }}>
-        <ActivityIndicator size="large" color="#4CBB17" />
+        <ActivityIndicator size="large" color={tokens.color.primaryText} />
       </View>
     );
   }
@@ -59,14 +60,14 @@ function NavigationRoot() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#131815',
+          backgroundColor: tokens.color.surface,
         },
-        headerTintColor: '#E8EEEA',
+        headerTintColor: tokens.color.text,
         headerTitleStyle: {
           fontFamily: 'GoogleSansFlex_600SemiBold',
         },
         contentStyle: {
-          backgroundColor: '#0B0E0C',
+          backgroundColor: tokens.color.bg,
         },
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

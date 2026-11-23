@@ -1,21 +1,20 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useColorScheme';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { Spacing, Typography } from '@/constants/Layout';
 
 export default function NotFoundScreen() {
-  const { colors } = useTheme();
-
   return (
     <>
       <Stack.Screen options={{ title: 'Screen Not Found' }} />
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
-        <Text style={[styles.title, { color: colors.text }]}>This screen doesn't exist.</Text>
+      <View style={[styles.container, { backgroundColor: tokens.color.bg }]}>
+        <Ionicons name="alert-circle-outline" size={48} color={tokens.color.textMuted} />
+        <Text style={[styles.title, { color: tokens.color.text }]}>This screen doesn't exist.</Text>
         <Link href="/" style={styles.link}>
-          <Text style={[styles.linkText, { color: colors.primary }]}>Return to Home</Text>
+          <Text style={[styles.linkText, { color: tokens.color.info }]}>Return to Home</Text>
         </Link>
       </View>
     </>

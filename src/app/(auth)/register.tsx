@@ -4,14 +4,14 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/hooks/useColorScheme';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card } from '@/components/common/Card';
@@ -20,7 +20,6 @@ import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 export default function RegisterScreen() {
   const router = useRouter();
   const { signUp, isConfigured } = useAuth();
-  const { colors } = useTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -90,17 +89,17 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { backgroundColor: colors.background }]}>
+      style={[styles.container, { backgroundColor: tokens.color.bg }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.brandContainer}>
-          <View style={[styles.logoCircle, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="person-add-outline" size={32} color={colors.primary} />
+          <View style={[styles.logoCircle, { backgroundColor: tokens.color.surfaceRaised }]}>
+            <Ionicons name="person-add-outline" size={32} color={tokens.color.info} />
           </View>
-          <Text style={[styles.brandTitle, { color: colors.text }]}>Create Account</Text>
-          <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
+          <Text style={[styles.brandTitle, { color: tokens.color.text }]}>Create Account</Text>
+          <Text style={[styles.brandSubtitle, { color: tokens.color.textMuted }]}>
             Join Photo De Jaldi to share and receive temporary files
           </Text>
         </View>
@@ -109,12 +108,12 @@ export default function RegisterScreen() {
         {!isConfigured && (
           <Card variant="subtle" style={styles.warningCard}>
             <View style={styles.warningRow}>
-              <Ionicons name="warning-outline" size={20} color={colors.status.pending} />
+              <Ionicons name="warning-outline" size={20} color={tokens.color.warning} />
               <View style={styles.warningTextContainer}>
-                <Text style={[styles.warningTitle, { color: colors.text }]}>
+                <Text style={[styles.warningTitle, { color: tokens.color.text }]}>
                   Supabase Setup Required
                 </Text>
-                <Text style={[styles.warningDescription, { color: colors.textSecondary }]}>
+                <Text style={[styles.warningDescription, { color: tokens.color.textMuted }]}>
                   Please configure <Text style={styles.codeText}>EXPO_PUBLIC_SUPABASE_URL</Text> in
                   your <Text style={styles.codeText}>.env</Text> file.
                 </Text>
@@ -125,21 +124,21 @@ export default function RegisterScreen() {
 
         {/* Form Card */}
         <Card style={styles.formCard}>
-          <Text style={[styles.formTitle, { color: colors.text }]}>Register</Text>
+          <Text style={[styles.formTitle, { color: tokens.color.text }]}>Register</Text>
 
           {errorMessage && (
-            <View style={[styles.banner, { backgroundColor: colors.dangerBg }]}>
-              <Ionicons name="alert-circle" size={18} color={colors.danger} />
-              <Text style={[styles.bannerText, { color: colors.danger }]}>
+            <View style={[styles.banner, { backgroundColor: tokens.color.dangerSoft }]}>
+              <Ionicons name="alert-circle" size={18} color={tokens.color.danger} />
+              <Text style={[styles.bannerText, { color: tokens.color.danger }]}>
                 {errorMessage}
               </Text>
             </View>
           )}
 
           {infoMessage && (
-            <View style={[styles.banner, { backgroundColor: colors.status.activeBg }]}>
-              <Ionicons name="checkmark-circle" size={18} color={colors.status.active} />
-              <Text style={[styles.bannerText, { color: colors.status.active }]}>
+            <View style={[styles.banner, { backgroundColor: tokens.color.primarySoft }]}>
+              <Ionicons name="checkmark-circle" size={18} color={tokens.color.primaryText} />
+              <Text style={[styles.bannerText, { color: tokens.color.primaryText }]}>
                 {infoMessage}
               </Text>
             </View>
@@ -157,7 +156,7 @@ export default function RegisterScreen() {
             }}
             error={emailError}
             leftIcon={
-              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="mail-outline" size={20} color={tokens.color.textMuted} />
             }
           />
 
@@ -173,7 +172,7 @@ export default function RegisterScreen() {
             }}
             error={passwordError}
             leftIcon={
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={20} color={tokens.color.textMuted} />
             }
           />
 
@@ -189,7 +188,7 @@ export default function RegisterScreen() {
             }}
             error={confirmPasswordError}
             leftIcon={
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={20} color={tokens.color.textMuted} />
             }
           />
 
@@ -198,15 +197,15 @@ export default function RegisterScreen() {
             onPress={handleRegister}
             loading={loading}
             style={styles.submitButton}
-            icon={<Ionicons name="arrow-forward-outline" size={18} color="#FFFFFF" />}
+            icon={<Ionicons name="arrow-forward-outline" size={18} color={tokens.color.onPrimary} />}
           />
 
           <View style={styles.switchAuthRow}>
-            <Text style={[styles.switchAuthText, { color: colors.textSecondary }]}>
+            <Text style={[styles.switchAuthText, { color: tokens.color.textMuted }]}>
               Already have an account?{' '}
             </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text style={[styles.switchAuthLink, { color: colors.primary }]}>
+              <Text style={[styles.switchAuthLink, { color: tokens.color.info }]}>
                 Sign In
               </Text>
             </TouchableOpacity>
@@ -252,7 +251,7 @@ const styles = StyleSheet.create({
   warningCard: {
     marginBottom: Spacing.lg,
     borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: tokens.color.warning,
   },
   warningRow: {
     flexDirection: 'row',
@@ -311,3 +310,4 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
   },
 });
+;

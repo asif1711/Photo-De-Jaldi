@@ -35,6 +35,9 @@ export default function TabsLayout() {
           fontFamily: 'GoogleSansFlex_500Medium',
           fontSize: 12,
         },
+        sceneStyle: {
+          backgroundColor: tokens.color.bg,
+        },
       }}>
       <Tabs.Screen
         name="index"

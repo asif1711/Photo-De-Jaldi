@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/hooks/useColorScheme';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { Spacing, Typography } from '@/constants/Layout';
 
 interface HeaderProps {
@@ -10,14 +11,12 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, action }: HeaderProps) {
-  const { colors } = useTheme();
-
   return (
     <View style={styles.container}>
       <View style={styles.textContainer}>
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.title, { color: tokens.color.text }]}>{title}</Text>
         {subtitle && (
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, { color: tokens.color.textMuted }]}>{subtitle}</Text>
         )}
       </View>
       {action && <View style={styles.actionContainer}>{action}</View>}

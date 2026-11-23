@@ -4,14 +4,14 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/hooks/useColorScheme';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card } from '@/components/common/Card';
@@ -20,7 +20,6 @@ import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn, isConfigured } = useAuth();
-  const { colors } = useTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,17 +68,17 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { backgroundColor: colors.background }]}>
+      style={[styles.container, { backgroundColor: tokens.color.bg }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled">
         {/* Header / Branding */}
         <View style={styles.brandContainer}>
-          <View style={[styles.logoCircle, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="flash-outline" size={36} color={colors.primary} />
+          <View style={[styles.logoCircle, { backgroundColor: tokens.color.surfaceRaised }]}>
+            <Ionicons name="flash-outline" size={36} color={tokens.color.info} />
           </View>
-          <Text style={[styles.brandTitle, { color: colors.text }]}>Photo De Jaldi</Text>
-          <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
+          <Text style={[styles.brandTitle, { color: tokens.color.text }]}>Photo De Jaldi</Text>
+          <Text style={[styles.brandSubtitle, { color: tokens.color.textMuted }]}>
             Temporary, zero-friction shared file buckets
           </Text>
         </View>
@@ -88,12 +87,12 @@ export default function LoginScreen() {
         {!isConfigured && (
           <Card variant="subtle" style={styles.warningCard}>
             <View style={styles.warningRow}>
-              <Ionicons name="warning-outline" size={20} color={colors.status.pending} />
+              <Ionicons name="warning-outline" size={20} color={tokens.color.warning} />
               <View style={styles.warningTextContainer}>
-                <Text style={[styles.warningTitle, { color: colors.text }]}>
+                <Text style={[styles.warningTitle, { color: tokens.color.text }]}>
                   Supabase Setup Required
                 </Text>
-                <Text style={[styles.warningDescription, { color: colors.textSecondary }]}>
+                <Text style={[styles.warningDescription, { color: tokens.color.textMuted }]}>
                   Set <Text style={styles.codeText}>EXPO_PUBLIC_SUPABASE_URL</Text> and{' '}
                   <Text style={styles.codeText}>EXPO_PUBLIC_SUPABASE_ANON_KEY</Text> in your{' '}
                   <Text style={styles.codeText}>.env</Text> file to connect authentication.
@@ -105,12 +104,12 @@ export default function LoginScreen() {
 
         {/* Form Card */}
         <Card style={styles.formCard}>
-          <Text style={[styles.formTitle, { color: colors.text }]}>Sign In</Text>
+          <Text style={[styles.formTitle, { color: tokens.color.text }]}>Sign In</Text>
 
           {errorMessage && (
-            <View style={[styles.errorBanner, { backgroundColor: colors.dangerBg }]}>
-              <Ionicons name="alert-circle" size={18} color={colors.danger} />
-              <Text style={[styles.errorBannerText, { color: colors.danger }]}>
+            <View style={[styles.errorBanner, { backgroundColor: tokens.color.dangerSoft }]}>
+              <Ionicons name="alert-circle" size={18} color={tokens.color.danger} />
+              <Text style={[styles.errorBannerText, { color: tokens.color.danger }]}>
                 {errorMessage}
               </Text>
             </View>
@@ -128,7 +127,7 @@ export default function LoginScreen() {
             }}
             error={emailError}
             leftIcon={
-              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="mail-outline" size={20} color={tokens.color.textMuted} />
             }
           />
 
@@ -144,7 +143,7 @@ export default function LoginScreen() {
             }}
             error={passwordError}
             leftIcon={
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="lock-closed-outline" size={20} color={tokens.color.textMuted} />
             }
           />
 
@@ -153,15 +152,15 @@ export default function LoginScreen() {
             onPress={handleLogin}
             loading={loading}
             style={styles.submitButton}
-            icon={<Ionicons name="log-in-outline" size={18} color="#FFFFFF" />}
+            icon={<Ionicons name="log-in-outline" size={18} color={tokens.color.onPrimary} />}
           />
 
           <View style={styles.switchAuthRow}>
-            <Text style={[styles.switchAuthText, { color: colors.textSecondary }]}>
+            <Text style={[styles.switchAuthText, { color: tokens.color.textMuted }]}>
               Don't have an account?{' '}
             </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-              <Text style={[styles.switchAuthLink, { color: colors.primary }]}>
+              <Text style={[styles.switchAuthLink, { color: tokens.color.info }]}>
                 Register
               </Text>
             </TouchableOpacity>
@@ -207,7 +206,7 @@ const styles = StyleSheet.create({
   warningCard: {
     marginBottom: Spacing.lg,
     borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: tokens.color.warning,
   },
   warningRow: {
     flexDirection: 'row',

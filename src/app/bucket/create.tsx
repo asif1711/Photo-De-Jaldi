@@ -5,13 +5,13 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useColorScheme';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card } from '@/components/common/Card';
@@ -34,7 +34,6 @@ const EXPIRY_PRESETS: ExpiryPreset[] = [
 
 export default function CreateBucketScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -115,19 +114,19 @@ export default function CreateBucketScreen() {
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.container, { backgroundColor: colors.background }]}>
+        style={[styles.container, { backgroundColor: tokens.color.bg }]}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
           {/* Information Card */}
           <Card variant="subtle" style={styles.introCard}>
             <View style={styles.introRow}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+              <Ionicons name="shield-checkmark-outline" size={20} color={tokens.color.info} />
               <View style={styles.introTextContainer}>
-                <Text style={[styles.introTitle, { color: colors.text }]}>
+                <Text style={[styles.introTitle, { color: tokens.color.text }]}>
                   Temporary & Self-Cleaning
                 </Text>
-                <Text style={[styles.introDescription, { color: colors.textSecondary }]}>
+                <Text style={[styles.introDescription, { color: tokens.color.textMuted }]}>
                   Buckets store your files temporarily. They are automatically deleted when all members
                   complete their downloads or when the expiry time is reached.
                 </Text>
@@ -138,9 +137,9 @@ export default function CreateBucketScreen() {
           {/* Form Card */}
           <Card style={styles.formCard}>
             {errorMessage && (
-              <View style={[styles.errorBanner, { backgroundColor: colors.dangerBg }]}>
-                <Ionicons name="alert-circle" size={18} color={colors.danger} />
-                <Text style={[styles.errorBannerText, { color: colors.danger }]}>
+              <View style={[styles.errorBanner, { backgroundColor: tokens.color.dangerSoft }]}>
+                <Ionicons name="alert-circle" size={18} color={tokens.color.danger} />
+                <Text style={[styles.errorBannerText, { color: tokens.color.danger }]}>
                   {errorMessage}
                 </Text>
               </View>
@@ -156,7 +155,7 @@ export default function CreateBucketScreen() {
                 if (nameError) setNameError(null);
               }}
               error={nameError}
-              leftIcon={<Ionicons name="folder-outline" size={20} color={colors.textSecondary} />}
+              leftIcon={<Ionicons name="folder-outline" size={20} color={tokens.color.textMuted} />}
             />
 
             {/* Description Input */}
@@ -168,15 +167,15 @@ export default function CreateBucketScreen() {
               multiline
               numberOfLines={3}
               style={styles.multilineInput}
-              leftIcon={<Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />}
+              leftIcon={<Ionicons name="document-text-outline" size={20} color={tokens.color.textMuted} />}
             />
 
             {/* Expiry Duration Selection */}
             <View style={styles.expirySection}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+              <Text style={[styles.fieldLabel, { color: tokens.color.textMuted }]}>
                 Expiry Duration *
               </Text>
-              <Text style={[styles.expiryPreview, { color: colors.primary }]}>
+              <Text style={[styles.expiryPreview, { color: tokens.color.info }]}>
                 Will expire: {formatDate(calculatedExpiry.toISOString())}
               </Text>
 
@@ -190,20 +189,20 @@ export default function CreateBucketScreen() {
                       style={[
                         styles.presetChip,
                         {
-                          backgroundColor: isSelected ? colors.primaryLight : colors.surfaceSubtle,
-                          borderColor: isSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected ? tokens.color.primarySoft : tokens.color.surfaceRaised,
+                          borderColor: isSelected ? tokens.color.info : tokens.color.border,
                         },
                       ]}>
                       <Ionicons
                         name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                         size={16}
-                        color={isSelected ? colors.primary : colors.textSecondary}
+                        color={isSelected ? tokens.color.info : tokens.color.textMuted}
                       />
                       <Text
                         style={[
                           styles.presetLabel,
                           {
-                            color: isSelected ? colors.primary : colors.text,
+                            color: isSelected ? tokens.color.info : tokens.color.text,
                             fontWeight: isSelected ? '600' : '400',
                           },
                         ]}>
@@ -222,7 +221,7 @@ export default function CreateBucketScreen() {
               loading={loading}
               disabled={loading}
               style={styles.submitButton}
-              icon={<Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />}
+              icon={<Ionicons name="add-circle-outline" size={20} color={tokens.color.onPrimary} />}
             />
           </Card>
         </ScrollView>

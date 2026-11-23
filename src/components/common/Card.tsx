@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ViewProps } from 'react-native';
-import { useTheme } from '@/hooks/useColorScheme';
+import { tokens } from '@/theme/tokens';
 import { BorderRadius, Spacing } from '@/constants/Layout';
 
 interface CardProps extends ViewProps {
@@ -9,15 +9,13 @@ interface CardProps extends ViewProps {
 }
 
 export function Card({ children, style, variant = 'default', ...props }: CardProps) {
-  const { colors } = useTheme();
-
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: variant === 'default' ? colors.surface : colors.surfaceSubtle,
-          borderColor: colors.border,
+          backgroundColor: variant === 'default' ? tokens.color.surface : tokens.color.surfaceRaised,
+          borderColor: tokens.color.border,
         },
         style,
       ]}

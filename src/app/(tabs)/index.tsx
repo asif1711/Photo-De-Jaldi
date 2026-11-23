@@ -173,7 +173,7 @@ export default function HomeScreen() {
               <Highlight style={styles.emptyHighlight}>Active</Highlight>
               <AppText variant="title"> Buckets</AppText>
             </View>
-            <AppText variant="caption" style={[styles.emptyDescription, { textAlign: 'center' }]}>
+            <AppText variant="caption" style={{ ...styles.emptyDescription, textAlign: 'center' }}>
               You don't have any active buckets right now. Create a bucket to temporarily share files.
             </AppText>
             <PrimaryButton style={styles.emptyButton} onPress={() => router.push('/bucket/create')}>
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: tokens.space[16],
-    paddingBottom: tokens.space[32],
+    paddingBottom: tokens.space[16] * 2,
   },
   greetingRow: {
     flexDirection: 'row',
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   loadingContainer: {
-    paddingVertical: tokens.space[32] * 2,
+    paddingVertical: tokens.space[16] * 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: tokens.space[32],
+    paddingVertical: tokens.space[16] * 2,
     paddingHorizontal: tokens.space[16],
     gap: tokens.space[12],
     maxWidth: 300,
@@ -400,6 +400,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: tokens.space[8],
+  },
+  metaText: {
+    marginTop: 2,
   },
   ruleNotice: {
     flexDirection: 'row',

@@ -1,7 +1,8 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useColorScheme';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { Header } from '@/components/common/Header';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -9,11 +10,9 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Spacing, Typography } from '@/constants/Layout';
 
 export default function InboxScreen() {
-  const { colors } = useTheme();
-
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: tokens.color.bg }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}>
       <Header
@@ -24,12 +23,12 @@ export default function InboxScreen() {
       {/* Info Notice about auto-deletion policy */}
       <Card variant="subtle" style={styles.infoCard}>
         <View style={styles.infoRow}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+          <Ionicons name="information-circle-outline" size={20} color={tokens.color.info} />
           <View style={styles.infoTextContainer}>
-            <Text style={[styles.infoTitle, { color: colors.text }]}>
+            <Text style={[styles.infoTitle, { color: tokens.color.text }]}>
               Auto-Destruct Policy
             </Text>
-            <Text style={[styles.infoDescription, { color: colors.textSecondary }]}>
+            <Text style={[styles.infoDescription, { color: tokens.color.textMuted }]}>
               When all invited members complete their downloads, or the bucket expires, the bucket
               and all its files are permanently purged from private storage.
             </Text>
@@ -39,14 +38,14 @@ export default function InboxScreen() {
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Shared With Me</Text>
+        <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Shared With Me</Text>
         <Badge label="Invitation Stage" variant="neutral" />
       </View>
 
       {/* Empty State */}
       <Card variant="subtle">
         <EmptyState
-          icon={<Ionicons name="mail-open-outline" size={36} color={colors.textSecondary} />}
+          icon={<Ionicons name="mail-open-outline" size={36} color={tokens.color.textMuted} />}
           title="Inbox Empty"
           description="When other registered users invite your email to their buckets in the upcoming invitation stage, they will appear here ready to download."
         />

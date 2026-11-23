@@ -3,10 +3,10 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
   ViewStyle,
 } from 'react-native';
-import { useTheme } from '@/hooks/useColorScheme';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger';
@@ -30,45 +30,43 @@ export function Button({
   icon,
   style,
 }: ButtonProps) {
-  const { colors } = useTheme();
-
   const getColors = () => {
     if (disabled) {
       return {
-        bg: colors.surfaceSubtle,
-        text: colors.textMuted,
-        border: colors.border,
+        bg: tokens.color.surfaceRaised,
+        text: tokens.color.textMuted,
+        border: tokens.color.border,
       };
     }
     switch (variant) {
       case 'primary':
         return {
-          bg: colors.primary,
-          text: '#FFFFFF',
+          bg: tokens.color.primary,
+          text: tokens.color.onPrimary,
           border: 'transparent',
         };
       case 'secondary':
         return {
-          bg: colors.surfaceSubtle,
-          text: colors.text,
+          bg: tokens.color.surfaceRaised,
+          text: tokens.color.text,
           border: 'transparent',
         };
       case 'outline':
         return {
           bg: 'transparent',
-          text: colors.text,
-          border: colors.borderStrong,
+          text: tokens.color.text,
+          border: tokens.color.border,
         };
       case 'danger':
         return {
-          bg: colors.dangerBg,
-          text: colors.danger,
+          bg: tokens.color.dangerSoft,
+          text: tokens.color.danger,
           border: 'transparent',
         };
       default:
         return {
-          bg: colors.primary,
-          text: '#FFFFFF',
+          bg: tokens.color.primary,
+          text: tokens.color.onPrimary,
           border: 'transparent',
         };
     }

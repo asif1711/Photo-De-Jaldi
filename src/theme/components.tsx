@@ -8,11 +8,11 @@ import {
   Pressable,
   Text,
   TextInput,
-  TextInputStyle,
   TextStyle,
   TouchableOpacity,
   View,
   ViewStyle,
+  type TextInputProps,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Svg, Circle } from 'react-native-svg';
@@ -91,17 +91,17 @@ export function Highlight({ style, children }: HighlightProps) {
 /* ------------------------------------------------------------------ */
 
 interface AppTextInputProps extends Omit<TextInputProps, 'style'> {
-  style?: TextInputStyle;
+  style?: TextInputProps['style'];
 }
 
 export function AppTextInput({ style, ...props }: AppTextInputProps) {
   return (
     <TextInput
+      placeholderTextColor={tokens.color.textMuted}
       style={[
         {
           fontFamily: fonts.body,
           color: tokens.color.text,
-          placeholderTextColor: tokens.color.textMuted,
           backgroundColor: tokens.color.surfaceRaised,
           borderWidth: tokens.borderWidth,
           borderColor: tokens.color.border,

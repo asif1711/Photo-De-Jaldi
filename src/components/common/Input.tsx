@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  Text,
-  TextInput,
   TextInputProps,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useColorScheme';
+import { Text, TextInput } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 interface InputProps extends TextInputProps {
@@ -26,29 +25,28 @@ export function Input({
   style,
   ...props
 }: InputProps) {
-  const { colors } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.label, { color: tokens.color.textMuted }]}>{label}</Text>
       <View
         style={[
           styles.inputContainer,
           {
-            backgroundColor: colors.surface,
+            backgroundColor: tokens.color.surface,
             borderColor: error
-              ? colors.danger
+              ? tokens.color.danger
               : isFocused
-              ? colors.primary
-              : colors.border,
+                ? tokens.color.info
+                : tokens.color.border,
           },
         ]}>
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
-          placeholderTextColor={colors.textMuted}
-          style={[styles.input, { color: colors.text }, style]}
+          placeholderTextColor={tokens.color.textMuted}
+          style={[styles.input, { color: tokens.color.text }, style]}
           secureTextEntry={isPassword && !showPassword}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -63,12 +61,12 @@ export function Input({
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={colors.textSecondary}
+              color={tokens.color.textMuted}
             />
           </TouchableOpacity>
         )}
       </View>
-      {error && <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: tokens.color.danger }]}>{error}</Text>}
     </View>
   );
 }

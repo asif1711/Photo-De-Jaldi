@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/hooks/useColorScheme';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/theme/primitives';
+import { tokens } from '@/theme/tokens';
 import { Spacing, Typography } from '@/constants/Layout';
 
 interface EmptyStateProps {
@@ -11,15 +12,13 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
-  const { colors } = useTheme();
-
   return (
     <View style={styles.container}>
-      <View style={[styles.iconContainer, { backgroundColor: colors.surfaceSubtle }]}>
+      <View style={[styles.iconContainer, { backgroundColor: tokens.color.surfaceRaised }]}>
         {icon}
       </View>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.description, { color: colors.textSecondary }]}>{description}</Text>
+      <Text style={[styles.title, { color: tokens.color.text }]}>{title}</Text>
+      <Text style={[styles.description, { color: tokens.color.textMuted }]}>{description}</Text>
       {action && <View style={styles.actionContainer}>{action}</View>}
     </View>
   );
