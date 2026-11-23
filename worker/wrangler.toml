@@ -1,0 +1,16 @@
+name = "photo-de-jaldi-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
+B2_BUCKET_NAME = "photo-de-jaldi-storage"
+B2_REGION = "us-east-005"
+SUPABASE_URL = "https://unobllenymfzafrwiuvm.supabase.co"
+MAX_STORAGE_BYTES = "9000000000"
+
+# Secrets to be configured via Wrangler (DO NOT HARDCODE HERE):
+# wrangler secret put B2_KEY_ID
+# wrangler secret put B2_APPLICATION_KEY
+# wrangler secret put SUPABASE_SERVICE_ROLE_KEY

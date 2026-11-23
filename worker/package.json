@@ -1,0 +1,21 @@
+{
+  "name": "photo-de-jaldi-worker",
+  "version": "1.0.0",
+  "description": "Photo De Jaldi Cloudflare Worker Backend for Backblaze B2 Storage & Quota Control",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@supabase/supabase-js": "^2.119.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250224.0",
+    "typescript": "^5.7.3",
+    "wrangler": "^3.111.0"
+  }
+}

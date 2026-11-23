@@ -31,7 +31,11 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env.example
+worker/.dev.vars
+worker/.wrangler/
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +45,16 @@ example
 # generated native folders
 /ios
 /android
+
+# Wrangler local state and secrets, any folder
+.wrangler/
+.dev.vars*
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# Logs and OS junk
+*.log
+Thumbs.db
+desktop.ini
