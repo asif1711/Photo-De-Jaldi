@@ -4,27 +4,20 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/hooks/useColorScheme';
-import { Header } from '@/components/common/Header';
-import { Card } from '@/components/common/Card';
-import { Button } from '@/components/common/Button';
-import { Badge } from '@/components/common/Badge';
-import { EmptyState } from '@/components/common/EmptyState';
+import { AppText, Card, Highlight, Pill, PrimaryButton, SecondaryButton } from '@/theme/components';
+import { tokens } from '@/theme/tokens';
 import { getActiveBuckets } from '@/services/bucket';
 import { Bucket } from '@/types';
 import { formatDate, formatTimeRemaining } from '@/utils/formatters';
-import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
   const { user, signOut } = useAuth();
 
   const [buckets, setBuckets] = useState<Bucket[]>([]);
@@ -59,112 +52,134 @@ export default function HomeScreen() {
     }, [fetchBuckets])
   );
 
+  const displayName = user?.user_metadata?.name ?? user?.email?.split('@')[0] ?? null;
+  const initial = displayName ? displayName.charAt(0).toUpperCase() : null;
+
+  const statusTone = (status: string): 'primary' | 'warning' | 'danger' | undefined => {
+    switch (status) {
+      case 'active':
+        return 'primary';
+      case 'completed':
+        return 'primary';
+      case 'expired':
+        return 'danger';
+      default:
+        return undefined;
+    }
+  };
+
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => fetchBuckets(true)}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
+          tintColor={tokens.color.primaryText}
+          colors={[tokens.color.primaryText]}
         />
       }>
-      <Header
-        title="My Buckets"
-        subtitle={user?.email ? `Signed in as ${user.email}` : 'Temporary file-sharing spaces'}
-        action={
-          <Button
-            title="Sign Out"
-            variant="outline"
-            onPress={() => signOut()}
-            icon={<Ionicons name="log-out-outline" size={16} color={colors.text} />}
-            style={styles.signOutButton}
-          />
-        }
-      />
+      {/* Greeting */}
+      <View style={styles.greetingRow}>
+        <View style={styles.greetingStart}>
+          {initial ? (
+            <View style={styles.avatar}>
+              <AppText variant="label" style={styles.avatarText}>
+                {initial}
+              </AppText>
+            </View>
+          ) : null}
+          <View style={styles.greetingText}>
+            {displayName ? (
+              <>
+                <AppText variant="body">Hello,</AppText>
+                <Highlight style={styles.highlight}>{displayName}</Highlight>
+              </>
+            ) : (
+              <AppText variant="body">Hello, Guest</AppText>
+            )}
+          </View>
+        </View>
+        <SecondaryButton onPress={() => signOut()}>Sign Out</SecondaryButton>
+      </View>
 
       {/* Quick Action Card */}
       <Card style={styles.actionCard}>
         <View style={styles.actionHeader}>
-          <View style={[styles.actionIconContainer, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="cloud-upload" size={24} color={colors.primary} />
+          <View style={styles.actionIconContainer}>
+            <Ionicons name="cloud-upload" size={24} color={tokens.color.primaryText} />
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={[styles.actionTitle, { color: colors.text }]}>New Shared Bucket</Text>
-            <Text style={[styles.actionDescription, { color: colors.textSecondary }]}>
+            <AppText variant="body" style={styles.actionTitle}>
+              New Shared Bucket
+            </AppText>
+            <AppText variant="caption" style={styles.actionDescription}>
               Create a temporary bucket with auto-deletion
-            </Text>
+            </AppText>
           </View>
         </View>
-        <Button
-          title="Create Bucket"
-          variant="primary"
-          onPress={() => router.push('/bucket/create')}
-          icon={<Ionicons name="add" size={18} color="#FFFFFF" />}
-        />
+        <PrimaryButton
+          icon={<Ionicons name="add" size={18} color={tokens.color.onPrimary} />}
+          onPress={() => router.push('/bucket/create')}>
+          Create Bucket
+        </PrimaryButton>
       </Card>
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Buckets</Text>
-        {!loading && (
-          <Badge
-            label={`${buckets.length} Active`}
-            variant={buckets.length > 0 ? 'active' : 'neutral'}
-          />
-        )}
+        <AppText variant="title">Active Buckets</AppText>
+        <Pill>{buckets.length} active</Pill>
       </View>
 
       {/* Error State */}
       {errorMessage && (
         <Card style={styles.errorCard}>
           <View style={styles.errorRow}>
-            <Ionicons name="alert-circle-outline" size={24} color={colors.danger} />
+            <Ionicons name="alert-circle-outline" size={24} color={tokens.color.danger} />
             <View style={styles.errorTextContainer}>
-              <Text style={[styles.errorTitle, { color: colors.danger }]}>Failed to load buckets</Text>
-              <Text style={[styles.errorDescription, { color: colors.textSecondary }]}>
+              <AppText variant="body" style={styles.errorTitle}>
+                Failed to load buckets
+              </AppText>
+              <AppText variant="caption" style={styles.errorDescription}>
                 {errorMessage}
-              </Text>
+              </AppText>
             </View>
           </View>
-          <Button
-            title="Try Again"
-            variant="outline"
-            onPress={() => fetchBuckets()}
-            style={styles.retryButton}
-          />
+          <SecondaryButton style={styles.retryButton} onPress={() => fetchBuckets()}>
+            Try Again
+          </SecondaryButton>
         </Card>
       )}
 
       {/* Loading State */}
       {loading && !refreshing && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Loading your buckets...
-          </Text>
+          <ActivityIndicator size="large" color={tokens.color.primaryText} />
+          <AppText variant="caption" style={styles.loadingText}>
+            Loading your buckets…
+          </AppText>
         </View>
       )}
 
       {/* Empty State */}
       {!loading && !errorMessage && buckets.length === 0 && (
-        <Card variant="subtle">
-          <EmptyState
-            icon={<Ionicons name="folder-open-outline" size={36} color={colors.textSecondary} />}
-            title="No Active Buckets"
-            description="You don't have any active buckets right now. Create a bucket to temporarily share files."
-            action={
-              <Button
-                title="Create First Bucket"
-                variant="primary"
-                onPress={() => router.push('/bucket/create')}
-                icon={<Ionicons name="add" size={16} color="#FFFFFF" />}
-              />
-            }
-          />
+        <Card style={styles.emptyCard}>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="folder-open-outline" size={36} color={tokens.color.textMuted} />
+            <View style={styles.emptyTitleRow}>
+              <AppText variant="title">No </AppText>
+              <Highlight style={styles.emptyHighlight}>Active</Highlight>
+              <AppText variant="title"> Buckets</AppText>
+            </View>
+            <AppText variant="caption" style={[styles.emptyDescription, { textAlign: 'center' }]}>
+              You don't have any active buckets right now. Create a bucket to temporarily share files.
+            </AppText>
+            <PrimaryButton style={styles.emptyButton} onPress={() => router.push('/bucket/create')}>
+              Create First Bucket
+            </PrimaryButton>
+          </View>
         </Card>
       )}
 
@@ -181,40 +196,38 @@ export default function HomeScreen() {
               <Card style={styles.bucketCard}>
                 <View style={styles.bucketCardTop}>
                   <View style={styles.bucketTitleRow}>
-                    <Ionicons name="folder" size={20} color={colors.primary} />
-                    <Text style={[styles.bucketName, { color: colors.text }]} numberOfLines={1}>
+                    <Ionicons name="folder" size={20} color={tokens.color.primaryText} />
+                    <AppText variant="body" style={styles.bucketName} numberOfLines={1}>
                       {bucket.name}
-                    </Text>
+                    </AppText>
                   </View>
-                  <Badge label={bucket.status} variant="active" />
+                  <Pill tone={statusTone(bucket.status)}>{bucket.status}</Pill>
                 </View>
 
                 {bucket.description ? (
-                  <Text style={[styles.bucketDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+                  <AppText variant="caption" style={styles.bucketDescription} numberOfLines={2}>
                     {bucket.description}
-                  </Text>
+                  </AppText>
                 ) : null}
 
                 <View style={styles.metaRow}>
-                  <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                  <AppText variant="caption" style={styles.metaText}>
                     Created: {formatDate(bucket.created_at)}
-                  </Text>
+                  </AppText>
                 </View>
 
-                <View style={[styles.ruleNotice, { backgroundColor: colors.surfaceSubtle }]}>
-                  <Ionicons name="timer-outline" size={14} color={colors.status.pending} />
-                  <Text style={[styles.ruleNoticeText, { color: colors.textSecondary }]}>
+                <View style={styles.ruleNotice}>
+                  <Ionicons name="timer-outline" size={14} color={tokens.color.textMuted} />
+                  <AppText variant="caption" style={styles.ruleNoticeText}>
                     Expires: {formatDate(bucket.expires_at)} ({timeLeft})
-                  </Text>
+                  </AppText>
                 </View>
 
-                <Button
-                  title="View Bucket Details"
-                  variant="outline"
-                  onPress={() => router.push(`/bucket/${bucket.id}`)}
-                  icon={<Ionicons name="arrow-forward" size={16} color={colors.text} />}
+                <SecondaryButton
                   style={styles.viewButton}
-                />
+                  onPress={() => router.push(`/bucket/${bucket.id}`)}>
+                  View Bucket Details
+                </SecondaryButton>
               </Card>
             </TouchableOpacity>
           );
@@ -228,132 +241,181 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
+    padding: tokens.space[16],
+    paddingBottom: tokens.space[32],
   },
-  signOutButton: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
+  greetingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: tokens.space[16],
+  },
+  greetingStart: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space[12],
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: tokens.color.surfaceRaised,
+    borderWidth: tokens.borderWidth,
+    borderColor: tokens.color.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: tokens.color.text,
+  },
+  greetingText: {
+    flex: 1,
+  },
+  highlight: {
+    fontSize: 20,
   },
   actionCard: {
-    marginBottom: Spacing.lg,
+    marginBottom: tokens.space[16],
   },
   actionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: tokens.space[12],
   },
   actionIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: tokens.color.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
   },
   actionTextContainer: {
     flex: 1,
   },
   actionTitle: {
-    fontSize: Typography.size.md,
-    fontWeight: Typography.weight.semibold,
+    fontSize: 16,
   },
   actionDescription: {
-    fontSize: Typography.size.xs,
     marginTop: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: Typography.size.lg,
-    fontWeight: Typography.weight.bold,
-  },
-  loadingContainer: {
-    paddingVertical: Spacing.xxxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: Typography.size.sm,
-    marginTop: Spacing.sm,
+    marginTop: tokens.space[8],
+    marginBottom: tokens.space[8],
   },
   errorCard: {
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: tokens.space[16],
+    marginBottom: tokens.space[12],
+    alignItems: 'center',
   },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.sm,
+    gap: tokens.space[8],
   },
   errorTextContainer: {
     flex: 1,
   },
   errorTitle: {
-    fontSize: Typography.size.sm,
-    fontWeight: Typography.weight.semibold,
-    marginBottom: 2,
+    fontSize: 16,
   },
   errorDescription: {
-    fontSize: Typography.size.xs,
+    fontSize: 12,
     lineHeight: 18,
+    marginTop: 4,
   },
   retryButton: {
-    marginTop: Spacing.md,
+    marginTop: tokens.space[12],
+    width: '100%',
+  },
+  loadingContainer: {
+    paddingVertical: tokens.space[32] * 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 13,
+    marginTop: tokens.space[8],
+  },
+  emptyCard: {
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: tokens.space[32],
+    paddingHorizontal: tokens.space[16],
+    gap: tokens.space[12],
+    maxWidth: 300,
+  },
+  emptyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  emptyHighlight: {
+    fontSize: 20,
+  },
+  emptyDescription: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+    maxWidth: 260,
+  },
+  emptyButton: {
+    marginTop: tokens.space[16],
+    width: '100%',
   },
   bucketCard: {
-    marginBottom: Spacing.md,
+    marginBottom: tokens.space[12],
   },
   bucketCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: tokens.space[8],
   },
   bucketTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: tokens.space[8],
     flex: 1,
-    marginRight: Spacing.sm,
+    marginRight: tokens.space[8],
   },
   bucketName: {
-    fontSize: Typography.size.md,
-    fontWeight: Typography.weight.semibold,
+    fontSize: 16,
     flex: 1,
   },
   bucketDescription: {
-    fontSize: Typography.size.sm,
+    fontSize: 12,
     marginTop: 2,
-    marginBottom: Spacing.xs,
+    marginBottom: tokens.space[8],
     lineHeight: 18,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  metaText: {
-    fontSize: Typography.size.xs,
+    marginBottom: tokens.space[8],
   },
   ruleNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    gap: Spacing.xs,
-    marginVertical: Spacing.xs,
+    padding: tokens.space[8],
+    borderRadius: 6,
+    gap: tokens.space[4],
+    marginVertical: tokens.space[8],
+    backgroundColor: tokens.color.surfaceRaised,
   },
   ruleNoticeText: {
-    fontSize: Typography.size.xs,
+    fontSize: 12,
     flex: 1,
   },
   viewButton: {
-    marginTop: Spacing.xs,
+    marginTop: tokens.space[8],
+    width: '100%',
   },
 });

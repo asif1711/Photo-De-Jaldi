@@ -1,41 +1,39 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useColorScheme';
+import { tokens } from '@/theme/tokens';
 
 export default function TabsLayout() {
-  const { colors, isDark } = useTheme();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: tokens.color.surface,
           shadowColor: 'transparent',
           elevation: 0,
           borderBottomWidth: 1,
-          borderBottomColor: colors.border,
+          borderBottomColor: tokens.color.border,
         },
         headerTitleStyle: {
-          fontWeight: '700',
+          fontFamily: 'GoogleSansFlex_600SemiBold',
           fontSize: 18,
-          color: colors.text,
+          color: tokens.color.text,
         },
         tabBarStyle: {
-          backgroundColor: colors.tabBarBackground,
+          backgroundColor: tokens.color.surface,
           borderTopWidth: 1,
-          borderTopColor: colors.tabBarBorder,
+          borderTopColor: tokens.color.border,
           elevation: 0,
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: colors.tabBarActive,
-        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarActiveTintColor: tokens.color.primaryText,
+        tabBarInactiveTintColor: tokens.color.textMuted,
         tabBarLabelStyle: {
+          fontFamily: 'GoogleSansFlex_500Medium',
           fontSize: 12,
-          fontWeight: '500',
         },
       }}>
       <Tabs.Screen
