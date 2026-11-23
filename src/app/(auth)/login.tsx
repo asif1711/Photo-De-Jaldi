@@ -79,7 +79,7 @@ export default function LoginScreen() {
           </View>
           <Text style={[styles.brandTitle, { color: tokens.color.text }]}>Photo De Jaldi</Text>
           <Text style={[styles.brandSubtitle, { color: tokens.color.textMuted }]}>
-            Temporary, zero-friction shared file buckets
+            Temporary, zero-friction shared file collections
           </Text>
         </View>
 
@@ -90,12 +90,10 @@ export default function LoginScreen() {
               <Ionicons name="warning-outline" size={20} color={tokens.color.warning} />
               <View style={styles.warningTextContainer}>
                 <Text style={[styles.warningTitle, { color: tokens.color.text }]}>
-                  Supabase Setup Required
+                  Sign-In Temporarily Unavailable
                 </Text>
                 <Text style={[styles.warningDescription, { color: tokens.color.textMuted }]}>
-                  Set <Text style={styles.codeText}>EXPO_PUBLIC_SUPABASE_URL</Text> and{' '}
-                  <Text style={styles.codeText}>EXPO_PUBLIC_SUPABASE_ANON_KEY</Text> in your{' '}
-                  <Text style={styles.codeText}>.env</Text> file to connect authentication.
+                  Authentication is not yet configured. Please try again later.
                 </Text>
               </View>
             </View>
@@ -218,7 +216,7 @@ const styles = StyleSheet.create({
   warningTitle: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.semibold,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
   },
   warningDescription: {
     fontSize: Typography.size.xs,

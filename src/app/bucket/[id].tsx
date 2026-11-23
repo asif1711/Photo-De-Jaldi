@@ -1011,15 +1011,14 @@ export default function BucketDetailsScreen() {
           <>
             {/* Header / Identification Card */}
             <Card style={styles.mainCard}>
-              <View style={styles.headerRow}>
-                <View style={styles.titleContainer}>
-                  <Text style={[styles.bucketTitle, { color: tokens.color.text }]}>{bucket.name}</Text>
-                  <Text style={[styles.bucketId, { color: tokens.color.textMuted }]}>ID: {bucket.id}</Text>
+                <View style={styles.headerRow}>
+                  <View style={styles.titleContainer}>
+                    <Text style={[styles.bucketTitle, { color: tokens.color.text }]}>{bucket.name}</Text>
+                  </View>
+                  <Badge label={bucket.status} variant={getStatusVariant(bucket.status)} />
                 </View>
-                <Badge label={bucket.status} variant={getStatusVariant(bucket.status)} />
-              </View>
 
-              {bucket.description ? (
+                {bucket.description ? (
                 <Text style={[styles.descriptionText, { color: tokens.color.textMuted }]}>
                   {bucket.description}
                 </Text>
@@ -1030,7 +1029,10 @@ export default function BucketDetailsScreen() {
                 <View style={styles.statusRow}>
                   <Ionicons name="calendar-outline" size={16} color={tokens.color.info} />
                   <Text style={[styles.statusLabel, { color: tokens.color.textMuted }]}>
-                    Created: <Text style={{ color: tokens.color.text }}>{formatDate(bucket.created_at)}</Text>
+                    Added:{' '}
+                    <Text style={{ color: tokens.color.text, fontWeight: Typography.weight.semibold }}>
+                      {formatDate(bucket.created_at)}
+                    </Text>
                   </Text>
                 </View>
 
@@ -1038,26 +1040,29 @@ export default function BucketDetailsScreen() {
                   <Ionicons name="timer-outline" size={16} color={tokens.color.warning} />
                   <Text style={[styles.statusLabel, { color: tokens.color.textMuted }]}>
                     Expires:{' '}
-                    <Text style={{ color: tokens.color.text, fontWeight: '600' }}>
+                    <Text style={{ color: tokens.color.text, fontWeight: Typography.weight.semibold }}>
                       {formatDate(bucket.expires_at)} ({formatTimeRemaining(bucket.expires_at)})
                     </Text>
                   </Text>
                 </View>
 
-                <View style={styles.statusRow}>
-                  <Ionicons name="person-outline" size={16} color={tokens.color.textMuted} />
-                  <Text style={[styles.statusLabel, { color: tokens.color.textMuted }]}>
-                    Owner:{' '}
-                    <Text style={{ color: tokens.color.text, fontWeight: isOwner ? '700' : '500' }}>
-                      {isOwner ? 'You (Creator)' : bucket.created_by}
+                {isOwner && (
+                  <View style={styles.statusRow}>
+                    <Ionicons name="person-outline" size={16} color={tokens.color.textMuted} />
+                    <Text style={[styles.statusLabel, { color: tokens.color.textMuted }]}>
+                      Owner:{' '}
+                      <Text style={{ color: tokens.color.text, fontWeight: Typography.weight.bold }}>
+                        You
+                      </Text>
                     </Text>
-                  </Text>
-                </View>
+                  </View>
+                )}
 
                 <View style={styles.statusRow}>
                   <Ionicons name="sync-outline" size={16} color={tokens.color.textMuted} />
                   <Text style={[styles.statusLabel, { color: tokens.color.textMuted }]}>
-                    Last updated: {formatDate(bucket.updated_at)}
+                    Updated:{' '}
+                    <Text style={{ color: tokens.color.text }}>{formatDate(bucket.updated_at)}</Text>
                   </Text>
                 </View>
               </View>
@@ -1083,11 +1088,11 @@ export default function BucketDetailsScreen() {
               )}
             </Card>
 
-            {/* Global Storage Indicator */}
+            {/* Storage Indicator */}
             <Card variant="subtle" style={styles.storageCard}>
               <View style={styles.storageHeader}>
                 <Ionicons name="cloud-outline" size={20} color={tokens.color.info} />
-                <Text style={[styles.storageTitle, { color: tokens.color.text }]}>Global Storage</Text>
+                <Text style={[styles.storageTitle, { color: tokens.color.text }]}>Storage</Text>
               </View>
               {storageUsage ? (
                 <View style={styles.storageRow}>
@@ -1109,12 +1114,10 @@ export default function BucketDetailsScreen() {
                       {formatBytes(storageUsage.committed_bytes)} used
                     </Text>
                     <Text style={[styles.storageAvailable, { color: tokens.color.textMuted }]}>
-                      {formatBytes(storageUsage.available_bytes)} of {formatBytes(
-                        storageUsage.limit_bytes
-                      )} available
+                      {formatBytes(storageUsage.available_bytes)} available
                     </Text>
                     <Text style={[styles.storagePercent, { color: tokens.color.textMuted }]}>
-                      {(storageUsage.utilization_percent || 0).toFixed(1)}% of 9 GB
+                      {(storageUsage.utilization_percent || 0).toFixed(0)}% of limit
                     </Text>
                   </View>
                 </View>
@@ -1125,7 +1128,7 @@ export default function BucketDetailsScreen() {
 
             {/* Files Section */}
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Shared Files</Text>
+              <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Files</Text>
               <Badge label={filesLoading ? 'Loading' : 'Files'} variant="neutral" />
             </View>
 
@@ -1143,7 +1146,7 @@ export default function BucketDetailsScreen() {
                     </Text>
                   </View>
                   <Button
-                    title="Cancel Selection"
+                    title="Cancel"
                     variant="outline"
                     onPress={clearSelectedFile}
                     icon={<Ionicons name="close-outline" size={16} color={tokens.color.text} />}
@@ -1153,7 +1156,7 @@ export default function BucketDetailsScreen() {
               )}
 
               <Button
-                title={selectedFile ? 'Start Upload' : 'Upload File'}
+                title={selectedFile ? 'Start Upload' : 'Add File'}
                 variant="primary"
                 onPress={selectedFile ? handleUpload : pickDocument}
                 disabled={
@@ -1224,33 +1227,8 @@ export default function BucketDetailsScreen() {
                       {formatBytes(uploadedBytes)} of {formatBytes(totalBytes)}
                     </Text>
                   </View>
-                </View>
 
-                {uploadSpeed > 0 && (
-                  <View style={styles.uploadSpeedRow}>
-                    <Ionicons name="speedometer-outline" size={14} color={tokens.color.textMuted} />
-                    <Text style={[styles.uploadSpeedText, { color: tokens.color.textMuted }]}>
-                      {formatSpeed(uploadSpeed)}
-                    </Text>
-                    {etaSeconds > 0 && (
-                      <Text style={[styles.uploadSpeedText, { color: tokens.color.textMuted }]}>
-                        • ETA {formatETA(etaSeconds)}
-                      </Text>
-                    )}
-                    {retryCount > 0 && (
-                      <Text style={[styles.uploadSpeedText, { color: tokens.color.textMuted }]}>
-                        • Retry {retryCount}/{MAX_RETRIES}
-                      </Text>
-                    )}
-                    {currentPart > 0 && (
-                      <Text style={[styles.uploadSpeedText, { color: tokens.color.textMuted }]}>
-                        • Part {currentPart}
-                      </Text>
-                    )}
-                  </View>
-                )}
-
-                {uploadError && (
+                  {uploadError && (
                   <View style={styles.uploadErrorBanner}>
                     <Ionicons name="alert-circle-outline" size={18} color={tokens.color.danger} />
                     <Text style={[styles.uploadErrorText, { color: tokens.color.danger }]}>
@@ -1315,6 +1293,7 @@ export default function BucketDetailsScreen() {
                     </>
                   )}
                 </View>
+                </View>
               </Card>
             )}
 
@@ -1332,11 +1311,11 @@ export default function BucketDetailsScreen() {
               <Card variant="subtle" style={styles.filesCard}>
                 <EmptyState
                   icon={<Ionicons name="cloud-upload-outline" size={36} color={tokens.color.info} />}
-                  title="No Files Uploaded Yet"
-                  description="Select a file and tap Upload File to add it to this bucket."
+                  title="No Files Yet"
+                  description="Select a file and tap Add File to add it to this collection."
                   action={
                     <Button
-                      title={selectedFile ? 'Start Upload' : 'Upload File'}
+                      title={selectedFile ? 'Start Upload' : 'Add File'}
                       variant="primary"
                       onPress={selectedFile ? handleUpload : pickDocument}
                       disabled={
@@ -1386,10 +1365,7 @@ export default function BucketDetailsScreen() {
                               {file.file_name}
                             </Text>
                             <Text style={[styles.fileType, { color: tokens.color.textMuted }]}>
-                              {file.mime_type} • {formatBytes(file.file_size)}
-                            </Text>
-                            <Text style={[styles.fileDate, { color: tokens.color.textMuted }]}>
-                              {formatDate(file.created_at)}
+                              {formatBytes(file.file_size)} • {formatDate(file.created_at)}
                             </Text>
                           </View>
                         </View>
@@ -1444,7 +1420,7 @@ export default function BucketDetailsScreen() {
           style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: tokens.color.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: tokens.color.text }]}>Edit Bucket</Text>
+              <Text style={[styles.modalTitle, { color: tokens.color.text }]}>Edit Collection</Text>
               <TouchableOpacity onPress={() => setIsEditing(false)}>
                 <Ionicons name="close" size={24} color={tokens.color.textMuted} />
               </TouchableOpacity>
@@ -1458,7 +1434,7 @@ export default function BucketDetailsScreen() {
             )}
 
             <Input
-              label="Bucket Name *"
+              label="Collection Name *"
               value={editName}
               onChangeText={setEditName}
               placeholder="Bucket Name"
@@ -1553,7 +1529,7 @@ const getStyles = (colors: Tokens['color']) =>
   },
   errorDescription: {
     fontSize: Typography.size.sm,
-    marginTop: 4,
+    marginTop: Spacing.xs,
     lineHeight: 18,
   },
   backButton: {
@@ -1578,7 +1554,7 @@ const getStyles = (colors: Tokens['color']) =>
   },
   bucketId: {
     fontSize: Typography.size.xs,
-    marginTop: 2,
+    marginTop: Spacing.xs,
     fontFamily: 'monospace',
   },
   descriptionText: {
@@ -1646,12 +1622,12 @@ const getStyles = (colors: Tokens['color']) =>
   storageAvailable: {
     fontSize: Typography.size.xs,
     color: tokens.color.textMuted,
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   storagePercent: {
     fontSize: Typography.size.xs,
     color: tokens.color.textMuted,
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1691,7 +1667,7 @@ const getStyles = (colors: Tokens['color']) =>
   selectedFileSize: {
     fontSize: Typography.size.xs,
     color: tokens.color.textMuted,
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   clearFileButton: {
     paddingHorizontal: Spacing.sm,
@@ -1813,12 +1789,12 @@ const getStyles = (colors: Tokens['color']) =>
   fileType: {
     fontSize: Typography.size.xs,
     color: tokens.color.textMuted,
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   fileDate: {
     fontSize: Typography.size.xs,
     color: tokens.color.textMuted,
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   fileActions: {
     gap: Spacing.sm,
@@ -1895,7 +1871,7 @@ const getStyles = (colors: Tokens['color']) =>
   fieldLabel: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.medium,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   expiryPreview: {
     fontSize: Typography.size.xs,

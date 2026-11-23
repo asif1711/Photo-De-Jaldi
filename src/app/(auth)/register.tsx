@@ -100,7 +100,7 @@ export default function RegisterScreen() {
           </View>
           <Text style={[styles.brandTitle, { color: tokens.color.text }]}>Create Account</Text>
           <Text style={[styles.brandSubtitle, { color: tokens.color.textMuted }]}>
-            Join Photo De Jaldi to share and receive temporary files
+            Join Photo De Jaldi to share and receive temporary file collections
           </Text>
         </View>
 
@@ -111,11 +111,10 @@ export default function RegisterScreen() {
               <Ionicons name="warning-outline" size={20} color={tokens.color.warning} />
               <View style={styles.warningTextContainer}>
                 <Text style={[styles.warningTitle, { color: tokens.color.text }]}>
-                  Supabase Setup Required
+                  Sign-Up Temporarily Unavailable
                 </Text>
                 <Text style={[styles.warningDescription, { color: tokens.color.textMuted }]}>
-                  Please configure <Text style={styles.codeText}>EXPO_PUBLIC_SUPABASE_URL</Text> in
-                  your <Text style={styles.codeText}>.env</Text> file.
+                  Authentication is not yet configured. Please try again later.
                 </Text>
               </View>
             </View>
@@ -263,7 +262,7 @@ const styles = StyleSheet.create({
   warningTitle: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.semibold,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
   },
   warningDescription: {
     fontSize: Typography.size.xs,

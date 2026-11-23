@@ -15,6 +15,7 @@ import { tokens } from '@/theme/tokens';
 import { getActiveBuckets } from '@/services/bucket';
 import { Bucket } from '@/types';
 import { formatDate, formatTimeRemaining } from '@/utils/formatters';
+import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -113,23 +114,23 @@ export default function HomeScreen() {
           </View>
           <View style={styles.actionTextContainer}>
             <AppText variant="body" style={styles.actionTitle}>
-              New Shared Bucket
+              New Collection
             </AppText>
             <AppText variant="caption" style={styles.actionDescription}>
-              Create a temporary bucket with auto-deletion
+              Create a temporary collection with auto-deletion
             </AppText>
           </View>
         </View>
         <PrimaryButton
           icon={<Ionicons name="add" size={18} color={tokens.color.onPrimary} />}
           onPress={() => router.push('/bucket/create')}>
-          Create Bucket
+          Create Collection
         </PrimaryButton>
       </Card>
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <AppText variant="title">Active Buckets</AppText>
+        <AppText variant="title">Your Collections</AppText>
         <Pill>{buckets.length} active</Pill>
       </View>
 
@@ -169,15 +170,15 @@ export default function HomeScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="folder-open-outline" size={36} color={tokens.color.textMuted} />
             <View style={styles.emptyTitleRow}>
-              <AppText variant="title">No </AppText>
-              <Highlight style={styles.emptyHighlight}>Active</Highlight>
-              <AppText variant="title"> Buckets</AppText>
+            <AppText variant="title">No </AppText>
+            <Highlight style={styles.emptyHighlight}>Active</Highlight>
+            <AppText variant="title"> Collections</AppText>
             </View>
             <AppText variant="caption" style={{ ...styles.emptyDescription, textAlign: 'center' }}>
-              You don't have any active buckets right now. Create a bucket to temporarily share files.
+              You do not have any active collections yet. Create a collection to temporarily share files.
             </AppText>
             <PrimaryButton style={styles.emptyButton} onPress={() => router.push('/bucket/create')}>
-              Create First Bucket
+              Create First Collection
             </PrimaryButton>
           </View>
         </Card>
@@ -226,7 +227,7 @@ export default function HomeScreen() {
                 <SecondaryButton
                   style={styles.viewButton}
                   onPress={() => router.push(`/bucket/${bucket.id}`)}>
-                  View Bucket Details
+                  View Collection Details
                 </SecondaryButton>
               </Card>
             </TouchableOpacity>
@@ -241,20 +242,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: tokens.space[16],
-    paddingBottom: tokens.space[16] * 2,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxxl,
   },
   greetingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: tokens.space[16],
+    marginBottom: Spacing.lg,
   },
   greetingStart: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.space[12],
+    gap: Spacing.md,
   },
   avatar: {
     width: 44,
@@ -273,15 +274,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   highlight: {
-    fontSize: 20,
+    fontSize: Typography.size.lg,
   },
   actionCard: {
-    marginBottom: tokens.space[16],
+    marginBottom: Spacing.lg,
   },
   actionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: tokens.space[12],
+    marginBottom: Spacing.md,
   },
   actionIconContainer: {
     width: 44,
@@ -295,130 +296,130 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionTitle: {
-    fontSize: 16,
+    fontSize: Typography.size.md,
   },
   actionDescription: {
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: tokens.space[8],
-    marginBottom: tokens.space[8],
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   errorCard: {
-    padding: tokens.space[16],
-    marginBottom: tokens.space[12],
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     alignItems: 'center',
   },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: tokens.space[8],
+    gap: Spacing.sm,
   },
   errorTextContainer: {
     flex: 1,
   },
   errorTitle: {
-    fontSize: 16,
+    fontSize: Typography.size.md,
   },
   errorDescription: {
-    fontSize: 12,
+    fontSize: Typography.size.xs,
     lineHeight: 18,
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
   retryButton: {
-    marginTop: tokens.space[12],
+    marginTop: Spacing.md,
     width: '100%',
   },
   loadingContainer: {
-    paddingVertical: tokens.space[16] * 4,
+    paddingVertical: Spacing.xxxl * 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    fontSize: 13,
-    marginTop: tokens.space[8],
+    fontSize: Typography.size.sm,
+    marginTop: Spacing.sm,
   },
   emptyCard: {
     alignItems: 'center',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: tokens.space[16] * 2,
-    paddingHorizontal: tokens.space[16],
-    gap: tokens.space[12],
+    paddingVertical: Spacing.xxxl,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.md,
     maxWidth: 300,
   },
   emptyTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: Spacing.xs,
   },
   emptyHighlight: {
-    fontSize: 20,
+    fontSize: Typography.size.xxl,
   },
   emptyDescription: {
-    fontSize: 12,
+    fontSize: Typography.size.sm,
     lineHeight: 18,
-    marginTop: 4,
+    marginTop: Spacing.xs,
     maxWidth: 260,
   },
   emptyButton: {
-    marginTop: tokens.space[16],
+    marginTop: Spacing.lg,
     width: '100%',
   },
   bucketCard: {
-    marginBottom: tokens.space[12],
+    marginBottom: Spacing.md,
   },
   bucketCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: tokens.space[8],
+    marginBottom: Spacing.sm,
   },
   bucketTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.space[8],
+    gap: Spacing.sm,
     flex: 1,
-    marginRight: tokens.space[8],
+    marginRight: Spacing.sm,
   },
   bucketName: {
-    fontSize: 16,
+    fontSize: Typography.size.md,
     flex: 1,
   },
   bucketDescription: {
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: tokens.space[8],
+    fontSize: Typography.size.xs,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
     lineHeight: 18,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: tokens.space[8],
+    marginBottom: Spacing.sm,
   },
   metaText: {
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
   ruleNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: tokens.space[8],
-    borderRadius: 6,
-    gap: tokens.space[4],
-    marginVertical: tokens.space[8],
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.xs,
+    marginVertical: Spacing.sm,
     backgroundColor: tokens.color.surfaceRaised,
   },
   ruleNoticeText: {
-    fontSize: 12,
+    fontSize: Typography.size.xs,
     flex: 1,
   },
   viewButton: {
-    marginTop: tokens.space[8],
+    marginTop: Spacing.sm,
     width: '100%',
   },
 });

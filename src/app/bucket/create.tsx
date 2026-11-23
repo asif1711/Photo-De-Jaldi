@@ -108,7 +108,7 @@ export default function CreateBucketScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Create New Bucket',
+          title: 'Create New Collection',
           headerBackTitle: 'Back',
         }}
       />
@@ -119,7 +119,7 @@ export default function CreateBucketScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
           {/* Information Card */}
-          <Card variant="subtle" style={styles.introCard}>
+            <Card variant="subtle" style={styles.introCard}>
             <View style={styles.introRow}>
               <Ionicons name="shield-checkmark-outline" size={20} color={tokens.color.info} />
               <View style={styles.introTextContainer}>
@@ -127,8 +127,8 @@ export default function CreateBucketScreen() {
                   Temporary & Self-Cleaning
                 </Text>
                 <Text style={[styles.introDescription, { color: tokens.color.textMuted }]}>
-                  Buckets store your files temporarily. They are automatically deleted when all members
-                  complete their downloads or when the expiry time is reached.
+                  Collections store your files temporarily. They are automatically removed when all
+                  members complete their downloads or when the expiry time is reached.
                 </Text>
               </View>
             </View>
@@ -147,8 +147,8 @@ export default function CreateBucketScreen() {
 
             {/* Bucket Name Input */}
             <Input
-              label="Bucket Name *"
-              placeholder="e.g. Wedding_Photos_Raw"
+              label="Collection Name *"
+              placeholder="e.g. Vacation Photos"
               value={name}
               onChangeText={(text) => {
                 setName(text);
@@ -216,7 +216,7 @@ export default function CreateBucketScreen() {
 
             {/* Submit Button */}
             <Button
-              title="Create Bucket"
+              title="Create Collection"
               onPress={handleCreate}
               loading={loading}
               disabled={loading}
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   introTitle: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.semibold,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
   },
   introDescription: {
     fontSize: Typography.size.xs,
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.medium,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   expiryPreview: {
     fontSize: Typography.size.xs,

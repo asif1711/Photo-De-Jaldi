@@ -63,7 +63,7 @@ export default function HistoryScreen() {
     if (status === 'expired' || isExpiredTime) {
       return { label: 'Expired', variant: 'expired' };
     }
-    return { label: status, variant: 'neutral' };
+    return { label: 'Active', variant: 'neutral' };
   };
 
   return (
@@ -81,31 +81,33 @@ export default function HistoryScreen() {
       }>
       <Header
         title="Activity History"
-        subtitle="Completed & expired bucket logs"
+        subtitle="Completed & expired collections"
       />
 
-      {/* Rules Explanation Card */}
+      {/* Deletion Info Card */}
       <Card variant="subtle" style={styles.rulesCard}>
-        <Text style={[styles.rulesTitle, { color: tokens.color.text }]}>Deletion Triggers</Text>
+        <Text style={[styles.rulesTitle, { color: tokens.color.text }]}>
+          How Collections Are Removed
+        </Text>
         <View style={styles.ruleItem}>
           <Ionicons name="checkmark-done-circle" size={16} color={tokens.color.primaryText} />
           <Text style={[styles.ruleText, { color: tokens.color.textMuted }]}>
-            Condition 1: Every invited member completes bucket download.
+            All invited members complete their downloads.
           </Text>
         </View>
         <View style={styles.ruleItem}>
           <Ionicons name="timer" size={16} color={tokens.color.danger} />
           <Text style={[styles.ruleText, { color: tokens.color.textMuted }]}>
-            Condition 2: Bucket reaches its configured expiry date.
+            The collection reaches its expiry date.
           </Text>
         </View>
       </Card>
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Past Buckets</Text>
+        <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Past Collections</Text>
         {!loading && (
-          <Badge label={`${buckets.length} Records`} variant="neutral" />
+          <Badge label={`${buckets.length} Collections`} variant="neutral" />
         )}
       </View>
 
@@ -145,8 +147,8 @@ export default function HistoryScreen() {
         <Card variant="subtle">
           <EmptyState
             icon={<Ionicons name="time-outline" size={36} color={tokens.color.textMuted} />}
-            title="No Past Records"
-            description="Completed and expired buckets will appear here once their lifecycle has concluded."
+            title="No Past Collections"
+            description="Completed and expired collections will appear here once their lifecycle has concluded."
           />
         </Card>
       )}
@@ -177,14 +179,14 @@ export default function HistoryScreen() {
                 </View>
 
                 {bucket.description ? (
-                  <Text style={[styles.historyDescription, { color: tokens.color.textMuted }]} numberOfLines={2}>
-                    {bucket.description}
-                  </Text>
-                ) : null}
+              <Text style={[styles.historyDescription, { color: tokens.color.textMuted }]} numberOfLines={2}>
+                {bucket.description}
+              </Text>
+            ) : null}
 
-                <Text style={[styles.historyMeta, { color: tokens.color.textMuted }]}>
-                  Created: {formatDate(bucket.created_at)} • Expired/Completed: {formatDate(bucket.expires_at)}
-                </Text>
+            <Text style={[styles.historyMeta, { color: tokens.color.textMuted }]}>
+              Added: {formatDate(bucket.created_at)} • Expires: {formatDate(bucket.expires_at)}
+            </Text>
               </Card>
             </TouchableOpacity>
           );
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginVertical: 3,
+    marginVertical: Spacing.xs,
   },
   ruleText: {
     fontSize: Typography.size.xs,
@@ -254,7 +256,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.semibold,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
   },
   errorDescription: {
     fontSize: Typography.size.xs,
@@ -286,11 +288,11 @@ const styles = StyleSheet.create({
   },
   historyDescription: {
     fontSize: Typography.size.sm,
-    marginTop: 2,
+    marginTop: Spacing.xs,
     marginBottom: Spacing.xs,
   },
   historyMeta: {
     fontSize: Typography.size.xs,
-    marginTop: 2,
+    marginTop: Spacing.xs,
   },
 });

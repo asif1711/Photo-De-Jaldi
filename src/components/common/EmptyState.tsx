@@ -29,15 +29,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.xxxl,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.xxl,
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   title: {
     fontSize: Typography.size.lg,
@@ -48,12 +48,12 @@ const styles = StyleSheet.create({
   description: {
     fontSize: Typography.size.sm,
     textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 320,
+    lineHeight: 22,
+    maxWidth: 300,
   },
   actionContainer: {
-    marginTop: Spacing.xl,
+    marginTop: Spacing.xxl,
     width: '100%',
-    maxWidth: 240,
+    maxWidth: 260,
   },
 });

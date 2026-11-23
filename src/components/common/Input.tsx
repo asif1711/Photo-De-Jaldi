@@ -102,6 +102,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.size.xs,
-    marginTop: 4,
+    marginTop: Spacing.xs,
   },
 });

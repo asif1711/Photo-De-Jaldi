@@ -12,7 +12,10 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ title: 'Screen Not Found' }} />
       <View style={[styles.container, { backgroundColor: tokens.color.bg }]}>
         <Ionicons name="alert-circle-outline" size={48} color={tokens.color.textMuted} />
-        <Text style={[styles.title, { color: tokens.color.text }]}>This screen doesn't exist.</Text>
+        <Text style={[styles.title, { color: tokens.color.text }]}>Page Not Found</Text>
+        <Text style={[styles.description, { color: tokens.color.textMuted }]}>
+          The page you are looking for is not available.
+        </Text>
         <Link href="/" style={styles.link}>
           <Text style={[styles.linkText, { color: tokens.color.info }]}>Return to Home</Text>
         </Link>
@@ -32,6 +35,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.size.lg,
     fontWeight: Typography.weight.semibold,
+  },
+  description: {
+    fontSize: Typography.size.sm,
+    color: tokens.color.textMuted,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
   link: {
     marginTop: Spacing.sm,

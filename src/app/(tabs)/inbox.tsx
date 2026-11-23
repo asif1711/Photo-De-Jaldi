@@ -16,8 +16,8 @@ export default function InboxScreen() {
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}>
       <Header
-        title="Shared Inbox"
-        subtitle="Temporary buckets shared with you"
+        title="Shared Collections"
+        subtitle="Temporary collections shared with you"
       />
 
       {/* Info Notice about auto-deletion policy */}
@@ -26,11 +26,11 @@ export default function InboxScreen() {
           <Ionicons name="information-circle-outline" size={20} color={tokens.color.info} />
           <View style={styles.infoTextContainer}>
             <Text style={[styles.infoTitle, { color: tokens.color.text }]}>
-              Auto-Destruct Policy
+              Auto-Deletion
             </Text>
             <Text style={[styles.infoDescription, { color: tokens.color.textMuted }]}>
-              When all invited members complete their downloads, or the bucket expires, the bucket
-              and all its files are permanently purged from private storage.
+              When all invited members complete their downloads, or the collection expires, the
+              collection and its files are permanently removed.
             </Text>
           </View>
         </View>
@@ -46,8 +46,8 @@ export default function InboxScreen() {
       <Card variant="subtle">
         <EmptyState
           icon={<Ionicons name="mail-open-outline" size={36} color={tokens.color.textMuted} />}
-          title="Inbox Empty"
-          description="When other registered users invite your email to their buckets in the upcoming invitation stage, they will appear here ready to download."
+          title="No Shared Collections"
+          description="When others invite your email to their collections, they will appear here ready to download."
         />
       </Card>
     </ScrollView>
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.semibold,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
   },
   infoDescription: {
     fontSize: Typography.size.xs,
