@@ -1,4 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+import { getActiveBuckets } from '@/services/bucket';
+import { AppText, Card, Highlight, Pill, PrimaryButton, SecondaryButton } from '@/theme/components';
+import { tokens } from '@/theme/tokens';
+import { Bucket } from '@/types';
+import { formatDate, formatTimeRemaining } from '@/utils/formatters';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -7,15 +16,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
-import { AppText, Card, Highlight, Pill, PrimaryButton, SecondaryButton } from '@/theme/components';
-import { tokens } from '@/theme/tokens';
-import { getActiveBuckets } from '@/services/bucket';
-import { Bucket } from '@/types';
-import { formatDate, formatTimeRemaining } from '@/utils/formatters';
-import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -95,8 +95,7 @@ export default function HomeScreen() {
           <View style={styles.greetingText}>
             {displayName ? (
               <>
-                <AppText variant="body">Hello,</AppText>
-                <Highlight style={styles.highlight}>{displayName}</Highlight>
+                <AppText variant="body">Hello, <Highlight style={styles.highlight}>{displayName}</Highlight></AppText>
               </>
             ) : (
               <AppText variant="body">Hello, Guest</AppText>
@@ -278,10 +277,12 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     marginBottom: Spacing.lg,
+    padding: Spacing.lg,
   },
   actionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.md,
     marginBottom: Spacing.md,
   },
   actionIconContainer: {
@@ -373,6 +374,7 @@ const styles = StyleSheet.create({
   },
   bucketCard: {
     marginBottom: Spacing.md,
+    padding: Spacing.lg,
   },
   bucketCardTop: {
     flexDirection: 'row',
