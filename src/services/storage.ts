@@ -83,6 +83,16 @@ export interface StorageUsageResult {
   available_bytes: number;
   limit_bytes: number;
   utilization_percent: number;
+  maximum_bytes: number;
+  percent_used: number;
+  is_limit_reached: boolean;
+  file_status_breakdown: FileStatusBreakdown[];
+}
+
+export interface FileStatusBreakdown {
+  file_status: 'uploaded' | 'expired' | 'deleted';
+  file_count: number;
+  total_bytes: number;
 }
 
 export interface AuthorizeUploadResult {

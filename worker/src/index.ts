@@ -48,6 +48,21 @@ const corsHeaders = {
 const MULTIPART_EXPIRES_SECONDS = 3600; // 1 hour for multipart sessions
 const PART_URL_EXPIRES_SECONDS = 600; // 10 minutes per part URL
 
+interface GlobalStorageUsageData {
+  maximum_bytes: number;
+  committed_bytes: number;
+  reserved_bytes: number;
+  available_bytes: number;
+  percent_used: number;
+  is_limit_reached: boolean;
+}
+
+interface FileStatusBreakdownData {
+  file_status: 'uploaded' | 'expired' | 'deleted';
+  file_count: number;
+  total_bytes: number;
+}
+
 function jsonResponse(
   data: any,
   status = 200,
@@ -182,13 +197,62 @@ export default {
         }
 
         const supabase = getSupabaseAdmin(env);
-        const { data, error } = await supabase.rpc('get_storage_usage');
+        const { data: usageData, error: usageError } = await supabase.rpc('get_storage_usage');
 
-        if (error) {
-          return errorResponse(error.message, 500);
+        if (usageError) {
+          console.error('[storage] Usage retrieval failed', { error: usageError.message });
+          return errorResponse('Storage usage is temporarily unavailable.', 500);
         }
 
-        return jsonResponse(data);
+        const usage = usageData as GlobalStorageUsageData | null;
+        if (
+          !usage ||
+          !Number.isFinite(usage.maximum_bytes) ||
+          !Number.isFinite(usage.committed_bytes) ||
+          !Number.isFinite(usage.reserved_bytes) ||
+          !Number.isFinite(usage.available_bytes) ||
+          !Number.isFinite(usage.percent_used) ||
+          typeof usage.is_limit_reached !== 'boolean'
+        ) {
+          console.error('[storage] Usage RPC returned an invalid response');
+          return errorResponse('Storage usage is temporarily unavailable.', 500);
+        }
+
+        const { data: breakdownData, error: breakdownError } = await supabase.rpc(
+          'get_file_status_breakdown'
+        );
+        const breakdownRows = Array.isArray(breakdownData)
+          ? (breakdownData as FileStatusBreakdownData[])
+          : null;
+        const expectedStatuses: FileStatusBreakdownData['file_status'][] = [
+          'uploaded',
+          'expired',
+          'deleted',
+        ];
+        const validBreakdown =
+          breakdownRows?.length === expectedStatuses.length &&
+          expectedStatuses.every((status) =>
+            breakdownRows.some(
+              (row) =>
+                row.file_status === status &&
+                Number.isFinite(row.file_count) &&
+                Number.isFinite(row.total_bytes)
+            )
+          );
+        if (breakdownError || !breakdownRows || !validBreakdown) {
+          console.error('[storage] File status breakdown retrieval failed', {
+            error: breakdownError?.message ?? 'Invalid aggregate response',
+          });
+          return errorResponse('Storage breakdown is temporarily unavailable.', 500);
+        }
+
+        return jsonResponse({
+          ...usage,
+          total_bytes: usage.committed_bytes + usage.reserved_bytes,
+          limit_bytes: usage.maximum_bytes,
+          utilization_percent: usage.percent_used,
+          file_status_breakdown: breakdownRows,
+        });
       }
 
       // ----------------------------------------------------------------------
