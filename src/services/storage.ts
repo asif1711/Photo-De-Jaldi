@@ -384,7 +384,8 @@ function uploadErr(message: string, retryable: boolean): Error {
  * Returns the ETag from B2 response headers.
  *
  * Uses readPart() (modern File API with fetch fallback) to obtain the part body,
- * then PUTs it via fetch to the presigned B2 URL.
+ * then PUTs it to the presigned B2 URL. When requested, XHR reports actual
+ * transfer progress for the individual part.
  */
 export async function uploadPart(
   uploadUrl: string,
@@ -392,7 +393,8 @@ export async function uploadPart(
   partNumber: number,
   startByte: number,
   endByte: number,
-  mimeType: string
+  mimeType: string,
+  onProgress?: (loadedBytes: number, totalBytes: number) => void
 ): Promise<UploadPartResult> {
   // Diagnostics: URI scheme and directory
   const uriScheme = localUri.split('://')[0] || 'unknown';
@@ -416,59 +418,113 @@ export async function uploadPart(
     `[uploadPart] part=${partNumber} readBytes=${bytesRead} expected=${partLength}`
   );
 
-  // Attempt PUT with Content-Range header
-  let response: Response;
-  try {
-    response = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': mimeType,
-        'Content-Range': `bytes ${startByte}-${endByte - 1}/*`,
-      },
-      body,
-    });
-  } catch (fetchError) {
-    // Network error — retryable
-    const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
-    throw uploadErr(
-      `Network error uploading part ${partNumber}: ${msg}`,
-      true
-    );
-  }
+  let responseStatus = 0;
+  let etag = '';
+  if (onProgress) {
+    const putPartWithProgress = (
+      includeContentRange: boolean
+    ): Promise<{ status: number; responseText: string; etag: string }> =>
+      new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.open('PUT', uploadUrl);
+        request.setRequestHeader('Content-Type', mimeType);
+        if (includeContentRange) {
+          request.setRequestHeader(
+            'Content-Range',
+            `bytes ${startByte}-${endByte - 1}/*`
+          );
+        }
+        request.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            onProgress(event.loaded, event.total);
+          }
+        };
+        request.onload = () => {
+          resolve({
+            status: request.status,
+            responseText: request.responseText,
+            etag: request.getResponseHeader('etag') || request.getResponseHeader('ETag') || '',
+          });
+        };
+        request.onerror = () => {
+          reject(uploadErr(`Network error uploading part ${partNumber}.`, true));
+        };
+        request.onabort = () => {
+          reject(uploadErr(`Upload of part ${partNumber} was interrupted.`, true));
+        };
+        request.send(body);
+      });
 
-  // If B2 returns 403/SignatureDoesNotMatch, retry without Content-Range
-  if (response.status === 403) {
-    const errorBody = await response.text();
-    if (errorBody.includes('SignatureDoesNotMatch')) {
+    let response: { status: number; responseText: string; etag: string };
+    try {
+      response = await putPartWithProgress(true);
+    } catch (error) {
+      if (error instanceof Error && 'retryable' in error) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw uploadErr(`Network error uploading part ${partNumber}: ${message}`, true);
+    }
+
+    if (
+      response.status === 403 &&
+      response.responseText.includes('SignatureDoesNotMatch')
+    ) {
+      response = await putPartWithProgress(false);
+    }
+    responseStatus = response.status;
+    if (response.status < 200 || response.status >= 300) {
+      const retryable = response.status === 429 || response.status >= 500;
+      throw uploadErr(
+        `Part ${partNumber} upload failed with HTTP ${response.status}: ${response.responseText}`,
+        retryable
+      );
+    }
+    etag = response.etag;
+  } else {
+    let response: Response;
+    try {
       response = await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': mimeType,
+          'Content-Range': `bytes ${startByte}-${endByte - 1}/*`,
         },
         body,
       });
-    } else {
+    } catch (fetchError) {
+      const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      throw uploadErr(`Network error uploading part ${partNumber}: ${msg}`, true);
+    }
+
+    if (response.status === 403) {
+      const errorBody = await response.text();
+      if (errorBody.includes('SignatureDoesNotMatch')) {
+        response = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': mimeType },
+          body,
+        });
+      } else {
+        throw uploadErr(
+          `Part ${partNumber} upload failed with HTTP ${response.status}: ${errorBody}`,
+          false
+        );
+      }
+    }
+
+    if (!response.ok) {
+      const bodyText = await response.text();
+      const retryable = response.status === 429 || response.status >= 500;
       throw uploadErr(
-        `Part ${partNumber} upload failed with HTTP ${response.status}: ${errorBody}`,
-        false
+        `Part ${partNumber} upload failed with HTTP ${response.status}: ${bodyText}`,
+        retryable
       );
     }
+    responseStatus = response.status;
+    etag = response.headers.get('etag') || response.headers.get('ETag') || '';
   }
-
-  if (!response.ok) {
-    const bodyText = await response.text();
-    const status = response.status;
-    const retryable = status === 429 || status >= 500;
-    throw uploadErr(
-      `Part ${partNumber} upload failed with HTTP ${status}: ${bodyText}`,
-      retryable
-    );
-  }
-
-  const etag = response.headers.get('etag') || response.headers.get('ETag') || '';
 
   console.log(
-    `[uploadPart] part=${partNumber} status=${response.status} etagPresent=${!!etag}`
+    `[uploadPart] part=${partNumber} status=${responseStatus} etagPresent=${!!etag}`
   );
 
   return {

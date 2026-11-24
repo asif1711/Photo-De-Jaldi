@@ -113,7 +113,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.actionTextContainer}>
             <AppText variant="body" style={styles.actionTitle}>
-              New Collection
+              New <Highlight style={styles.highlight}>Collection</Highlight>
             </AppText>
             <AppText variant="caption" style={styles.actionDescription}>
               Create a temporary collection with auto-deletion
@@ -129,7 +129,7 @@ export default function HomeScreen() {
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <AppText variant="title">Your Collections</AppText>
+        <AppText variant="title">Your <Highlight style={styles.highlight}>Collections</Highlight></AppText>
         <Pill>{buckets.length} active</Pill>
       </View>
 
@@ -169,9 +169,7 @@ export default function HomeScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="folder-open-outline" size={36} color={tokens.color.textMuted} />
             <View style={styles.emptyTitleRow}>
-            <AppText variant="title">No </AppText>
-            <Highlight style={styles.emptyHighlight}>Active</Highlight>
-            <AppText variant="title"> Collections</AppText>
+            <AppText variant="title">No Active Collection</AppText>
             </View>
             <AppText variant="caption" style={{ ...styles.emptyDescription, textAlign: 'center' }}>
               You do not have any active collections yet. Create a collection to temporarily share files.

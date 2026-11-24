@@ -3,6 +3,7 @@
  * Built on src/theme/tokens.ts. No light theme, no useColorScheme branching.
  */
 
+import { Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
   Pressable,
@@ -14,9 +15,8 @@ import {
   ViewStyle,
   type TextInputProps,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { Svg, Circle } from 'react-native-svg';
-import { tokens, fonts, FontName } from './tokens';
+import { Circle, Svg } from 'react-native-svg';
+import { FontName, fonts, tokens } from './tokens';
 
 type IconName = React.ComponentProps<typeof Feather>['name'];
 
@@ -77,7 +77,7 @@ export function Highlight({ style, children }: HighlightProps) {
   return (
     <Text
       style={[
-        { fontFamily: fonts.headingItalic as FontName, color: tokens.color.primaryText },
+        { fontFamily: fonts.heading as FontName, color: tokens.color.primaryText },
         style,
       ]}
     >
