@@ -19,6 +19,7 @@ import {
   DEFAULT_PART_SIZE,
 } from './s3';
 import { runExpiredBucketCleanup } from './expiryCleanup';
+import { APP_LIMITS } from './caps';
 import {
   AbortMultipartRequest,
   AbortMultipartResult,
@@ -44,7 +45,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 const MULTIPART_EXPIRES_SECONDS = 3600; // 1 hour for multipart sessions
 const PART_URL_EXPIRES_SECONDS = 600; // 10 minutes per part URL
 
@@ -211,7 +211,7 @@ export default {
         }
 
         // Enforce 5 GB per-file limit in the Worker
-        if (body.fileSize > MAX_FILE_SIZE_BYTES) {
+        if (body.fileSize > APP_LIMITS.MAX_FILE_SIZE_BYTES) {
           return errorResponse(
             `File size exceeds maximum of 5 GB (${body.fileSize} bytes requested).`,
             400
@@ -323,7 +323,7 @@ export default {
         }
 
         // Enforce 5 GB per-file limit in the Worker
-        if (body.fileSize > MAX_FILE_SIZE_BYTES) {
+        if (body.fileSize > APP_LIMITS.MAX_FILE_SIZE_BYTES) {
           return errorResponse(
             `File size exceeds maximum of 5 GB (${body.fileSize} bytes requested).`,
             400

@@ -8,15 +8,16 @@ import {
   type B2RequestBudget,
 } from './b2-cleanup';
 import { getSupabaseAdmin } from './auth';
+import { APP_LIMITS } from './caps';
 import { Env } from './types';
 
 const EXPIRY_DETECTION_BATCH_SIZE = 50;
 const CLEANUP_BATCH_SIZE = 1;
-const CLEANUP_LEASE_SECONDS = 900;
-const MAX_SUBREQUESTS_PER_INVOCATION = 40;
-const FINAL_RPC_RESERVE = 2;
-const RETRY_DELAY_SECONDS = 300;
-const EMPTY_PREFIX_QUIET_PERIOD_MS = 15 * 60 * 1000;
+const CLEANUP_LEASE_SECONDS = APP_LIMITS.CLEANUP_LEASE_SECONDS;
+const MAX_SUBREQUESTS_PER_INVOCATION = APP_LIMITS.CLEANUP_REQUEST_BUDGET;
+const FINAL_RPC_RESERVE = APP_LIMITS.CLEANUP_FINAL_CALL_RESERVE;
+const RETRY_DELAY_SECONDS = APP_LIMITS.CLEANUP_RETRY_DELAY_SECONDS;
+const EMPTY_PREFIX_QUIET_PERIOD_MS = APP_LIMITS.CLEANUP_EMPTY_PREFIX_QUIET_PERIOD_MS;
 const BUCKET_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 class CleanupInvocationBudget implements B2RequestBudget {

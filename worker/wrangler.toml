@@ -4,6 +4,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [triggers]
+# Keep this interval in sync with CLEANUP_CRON_INTERVAL_MINUTES in src/caps.ts; TOML cannot import TypeScript values.
 crons = ["*/15 * * * *"]
 
 [vars]

@@ -1,11 +1,12 @@
 import { Env } from './types';
+import { APP_LIMITS } from './caps';
 
 const B2_NATIVE_API_BASE = 'https://api.backblazeb2.com/b2api/v4';
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [250, 750, 1750];
 
-export const MAX_B2_SUBREQUESTS_PER_INVOCATION = 40;
+export const MAX_B2_SUBREQUESTS_PER_INVOCATION = APP_LIMITS.CLEANUP_REQUEST_BUDGET;
 
 export class CleanupBudgetExhaustedError extends Error {
   constructor() {

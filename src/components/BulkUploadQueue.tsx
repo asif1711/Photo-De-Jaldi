@@ -17,6 +17,7 @@ import { tokens } from '@/theme/tokens';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { FileTypeIcon } from '@/theme/components';
+import { APP_LIMITS } from '@/constants/caps';
 import {
   abortMultipartUpload,
   completeMultipartUpload,
@@ -30,10 +31,6 @@ import {
 } from '@/services/storage';
 import { formatBytes } from '@/utils/formatters';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
-
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
-const MAX_CONCURRENT_UPLOADS = 2;
-const MAX_PART_RETRIES = 3;
 
 interface LocalUploadFile {
   uri: string;
@@ -187,7 +184,7 @@ export function BulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) 
         const error =
           size <= 0
             ? 'This file is empty or unavailable.'
-            : size > MAX_FILE_SIZE_BYTES
+            : size > APP_LIMITS.MAX_FILE_SIZE_BYTES
               ? `This file is larger than the 5 GB per-file limit (${formatBytes(size)}).`
               : undefined;
 
@@ -231,12 +228,12 @@ export function BulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) 
   const uploadItem = useCallback(
     async (item: QueueItem) => {
       const { file, id } = item;
-      if (file.size <= 0 || file.size > MAX_FILE_SIZE_BYTES) {
+      if (file.size <= 0 || file.size > APP_LIMITS.MAX_FILE_SIZE_BYTES) {
         updateItem(id, (current) => ({
           ...current,
           status: 'failed',
           error:
-            file.size > MAX_FILE_SIZE_BYTES
+            file.size > APP_LIMITS.MAX_FILE_SIZE_BYTES
               ? 'This file is larger than the 5 GB per-file limit.'
               : 'This file is empty or unavailable.',
         }));
@@ -312,7 +309,7 @@ export function BulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) 
           let uploadedPart: { partNumber: number; etag: string } | null = null;
           let lastError: unknown;
 
-          for (let attempt = 0; attempt <= MAX_PART_RETRIES; attempt++) {
+          for (let attempt = 0; attempt <= APP_LIMITS.MAX_PART_RETRIES; attempt++) {
             await waitForResume();
             if (cancelRequestedRef.current.has(id)) break;
             try {
@@ -366,7 +363,7 @@ export function BulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) 
                 !(error instanceof Error) ||
                 !('retryable' in error) ||
                 error.retryable !== false;
-              if (!retryable || attempt === MAX_PART_RETRIES) throw error;
+              if (!retryable || attempt === APP_LIMITS.MAX_PART_RETRIES) throw error;
               await new Promise((resolve) =>
                 setTimeout(resolve, 1000 * 2 ** attempt)
               );
@@ -457,7 +454,7 @@ export function BulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) 
 
   startPendingRef.current = () => {
     if (!batchActiveRef.current || pauseRequestedRef.current) return;
-    while (activeItemsRef.current.size < MAX_CONCURRENT_UPLOADS) {
+    while (activeItemsRef.current.size < APP_LIMITS.MAX_CONCURRENT_UPLOADS) {
       const next = queueRef.current.find((item) => item.status === 'waiting');
       if (!next) break;
       activeItemsRef.current.add(next.id);

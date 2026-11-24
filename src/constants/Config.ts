@@ -1,3 +1,5 @@
+import { APP_LIMITS } from './caps';
+
 /**
  * Application configuration
  *
@@ -14,9 +16,9 @@ export const AppConfig = {
   // Soft client-side hints (server enforces hard limits)
   limits: {
     // Global quota enforced server-side: 9,000,000,000 bytes
-    globalStorageLimitBytes: 9_000_000_000,
+    globalStorageLimitBytes: APP_LIMITS.TOTAL_STORAGE_BYTES,
     // Warn user in UI at these utilization thresholds
-    warningThresholds: [0.7, 0.8, 0.9, 1.0],
+    warningThresholds: [0.7, 0.8, APP_LIMITS.STORAGE_WARNING_THRESHOLD, 1.0],
     defaultExpiryHours: 24,
     maxExpiryHours: 168,
   },

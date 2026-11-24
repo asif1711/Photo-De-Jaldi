@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { File, FileMode } from 'expo-file-system';
 import { supabase } from './supabase';
 import { AppConfig } from '@/constants/Config';
+import { APP_LIMITS } from '@/constants/caps';
 
 // Module-level cache for fetch(uri).blob() fallback — resolved once per URI per session
 const blobCache = new Map<string, Promise<Blob>>();
@@ -110,8 +111,7 @@ export interface DeleteFileResult {
   freedBytes: number;
 }
 
-export const MAX_FILES_PER_DELETE_ACTION = 50;
-const FILE_DELETE_CONCURRENCY = 5;
+export const MAX_FILES_PER_DELETE_ACTION = APP_LIMITS.MAX_FILES_PER_DELETE_ACTION;
 
 export interface DeleteFilesResult {
   deletedFileIds: string[];
@@ -327,13 +327,13 @@ export async function deleteFile(fileId: string): Promise<DeleteFileResult> {
 
 export async function deleteFiles(fileIds: string[]): Promise<DeleteFilesResult> {
   const uniqueFileIds = Array.from(new Set(fileIds));
-  if (uniqueFileIds.length > MAX_FILES_PER_DELETE_ACTION) {
-    throw new Error(`You can delete up to ${MAX_FILES_PER_DELETE_ACTION} files at once.`);
+  if (uniqueFileIds.length > APP_LIMITS.MAX_FILES_PER_DELETE_ACTION) {
+    throw new Error(`You can delete up to ${APP_LIMITS.MAX_FILES_PER_DELETE_ACTION} files at once.`);
   }
 
   const result: DeleteFilesResult = { deletedFileIds: [], failedFileIds: [] };
-  for (let start = 0; start < uniqueFileIds.length; start += FILE_DELETE_CONCURRENCY) {
-    const batch = uniqueFileIds.slice(start, start + FILE_DELETE_CONCURRENCY);
+  for (let start = 0; start < uniqueFileIds.length; start += APP_LIMITS.FILE_DELETE_CONCURRENCY) {
+    const batch = uniqueFileIds.slice(start, start + APP_LIMITS.FILE_DELETE_CONCURRENCY);
     const settled = await Promise.allSettled(batch.map((fileId) => deleteFile(fileId)));
     settled.forEach((outcome, index) => {
       if (outcome.status === 'fulfilled') {
