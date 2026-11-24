@@ -1,6 +1,31 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AuthenticatedUser, Env } from './types';
 
+export interface BucketAvailability {
+  status: string;
+  expires_at: string;
+}
+
+export function getBucketAvailabilityError(
+  bucket: BucketAvailability
+): { message: string; status: number } | null {
+  if (bucket.status === 'expired' || bucket.status === 'deleting') {
+    return { message: 'This bucket is no longer available.', status: 410 };
+  }
+
+  const expiresAt = new Date(bucket.expires_at).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    return { message: 'This bucket has expired.', status: 410 };
+  }
+
+  // Completed buckets remain readable until expiry in the existing history model.
+  if (bucket.status === 'active' || bucket.status === 'completed') {
+    return null;
+  }
+
+  return { message: 'This bucket is not available.', status: 409 };
+}
+
 export function getSupabaseAdmin(env: Env): SupabaseClient {
   return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: {

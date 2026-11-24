@@ -1,5 +1,6 @@
 import {
   authenticateRequest,
+  getBucketAvailabilityError,
   getSupabaseAdmin,
   verifyBucketAccess,
 } from './auth';
@@ -1060,13 +1061,17 @@ export default {
             return errorResponse(`File is not available for download (status: ${file.upload_status}).`, 400);
           }
 
-          const { authorized, error: accessError } = await verifyBucketAccess(
+          const { authorized, error: accessError, bucket } = await verifyBucketAccess(
             supabase,
             file.bucket_id,
             user.id
           );
           if (!authorized || accessError) {
             return errorResponse('You are not authorized to download files from this bucket.', 403);
+          }
+          const availabilityError = bucket && getBucketAvailabilityError(bucket);
+          if (availabilityError) {
+            return errorResponse(availabilityError.message, availabilityError.status);
           }
 
           objectKey = file.object_key;
@@ -1080,13 +1085,17 @@ export default {
             return errorResponse('File not found.', 404);
           }
 
-          const { authorized, error: accessError } = await verifyBucketAccess(
+          const { authorized, error: accessError, bucket } = await verifyBucketAccess(
             supabase,
             bucketId,
             user.id
           );
           if (!authorized || accessError) {
             return errorResponse('You are not authorized to download files from this bucket.', 403);
+          }
+          const availabilityError = bucket && getBucketAvailabilityError(bucket);
+          if (availabilityError) {
+            return errorResponse(availabilityError.message, availabilityError.status);
           }
 
           objectKey = key;
@@ -1125,7 +1134,7 @@ export default {
         }
 
         const supabase = getSupabaseAdmin(env);
-        const { authorized, error: accessError } = await verifyBucketAccess(
+        const { authorized, error: accessError, bucket } = await verifyBucketAccess(
           supabase,
           bucketId,
           user.id
@@ -1133,6 +1142,10 @@ export default {
 
         if (!authorized || accessError) {
           return errorResponse('Access denied to bucket files.', 403);
+        }
+        const availabilityError = bucket && getBucketAvailabilityError(bucket);
+        if (availabilityError) {
+          return errorResponse(availabilityError.message, availabilityError.status);
         }
 
         const prefix = `buckets/${bucketId}/`;
