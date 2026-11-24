@@ -17,6 +17,7 @@ import {
   calculateTotalParts,
   DEFAULT_PART_SIZE,
 } from './s3';
+import { runExpiredBucketCleanup } from './expiryCleanup';
 import {
   AbortMultipartRequest,
   AbortMultipartResult,
@@ -147,6 +148,19 @@ function guessMimeType(fileName: string): string {
 }
 
 export default {
+  scheduled(
+    _controller: { cron: string; scheduledTime: number },
+    env: Env,
+    ctx: { waitUntil(promise: Promise<unknown>): void }
+  ) {
+    ctx.waitUntil(
+      runExpiredBucketCleanup(env).catch((error: unknown) => {
+        console.error('[expiry-cleanup] Scheduled run failed', {
+          error: error instanceof Error ? error.message : 'Unknown cleanup error',
+        });
+      })
+    );
+  },
   async fetch(request: Request, env: Env): Promise<Response> {
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
@@ -454,6 +468,18 @@ export default {
           return errorResponse('Multipart upload session has expired.', 400);
         }
 
+        const { data: bucket, error: bucketError } = await supabase
+          .from('buckets')
+          .select('status,expires_at')
+          .eq('id', upload.bucket_id)
+          .maybeSingle();
+        if (bucketError || !bucket) {
+          return errorResponse('Bucket could not be verified.', 500);
+        }
+        if (bucket.status !== 'active' || new Date(bucket.expires_at).getTime() <= Date.now()) {
+          return errorResponse('Bucket has expired and no longer accepts uploads.', 409);
+        }
+
         // Verify part number is within range
         if (body.partNumber > upload.total_parts) {
           return errorResponse(
@@ -651,6 +677,20 @@ export default {
             } as CompleteMultipartResult);
           }
           // Otherwise fall through and resume the unfinished tail (verify + commit).
+        }
+
+        if (!alreadyCompleted) {
+          const { data: bucket, error: bucketError } = await supabase
+            .from('buckets')
+            .select('status,expires_at')
+            .eq('id', upload.bucket_id)
+            .maybeSingle();
+          if (bucketError || !bucket) {
+            return errorResponse('Bucket could not be verified.', 500);
+          }
+          if (bucket.status !== 'active' || new Date(bucket.expires_at).getTime() <= Date.now()) {
+            return errorResponse('Bucket has expired and no longer accepts uploads.', 409);
+          }
         }
 
         const completedParts: { ETag: string; PartNumber: number }[] = recordedParts.map(
@@ -903,12 +943,24 @@ export default {
         // Retrieve reservation and file records
         const { data: file, error: fileError } = await supabase
           .from('bucket_files')
-          .select('object_key, file_size, upload_status')
+          .select('object_key, file_size, upload_status, bucket_id')
           .eq('id', body.fileId)
           .single();
 
         if (fileError || !file) {
           return errorResponse('File record not found.', 404);
+        }
+
+        const { data: bucket, error: bucketError } = await supabase
+          .from('buckets')
+          .select('status,expires_at')
+          .eq('id', file.bucket_id)
+          .maybeSingle();
+        if (bucketError || !bucket) {
+          return errorResponse('Bucket could not be verified.', 500);
+        }
+        if (bucket.status !== 'active' || new Date(bucket.expires_at).getTime() <= Date.now()) {
+          return errorResponse('Bucket has expired and no longer accepts uploads.', 409);
         }
 
         // Verify actual object presence in Backblaze B2 via HeadObject

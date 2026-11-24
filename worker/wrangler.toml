@@ -3,6 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+[triggers]
+crons = ["*/5 * * * *"]
+
 [vars]
 B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 B2_BUCKET_NAME = "photo-de-jaldi-storage"
@@ -14,3 +17,4 @@ MAX_STORAGE_BYTES = "9000000000"
 # wrangler secret put B2_KEY_ID
 # wrangler secret put B2_APPLICATION_KEY
 # wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+# B2 cleanup requires listFiles, deleteFiles, and writeFiles. Unrestricted keys also need listBuckets.
