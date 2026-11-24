@@ -5,6 +5,19 @@ const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [250, 750, 1750];
 
+export const MAX_B2_SUBREQUESTS_PER_INVOCATION = 40;
+
+export class CleanupBudgetExhaustedError extends Error {
+  constructor() {
+    super('Cleanup subrequest budget reserve reached');
+    this.name = 'CleanupBudgetExhaustedError';
+  }
+}
+
+export interface B2RequestBudget {
+  consumeB2Request(): void;
+}
+
 interface B2StorageApi {
   apiUrl: string;
   allowed?: {
@@ -28,6 +41,7 @@ export interface B2CleanupSession {
   apiUrl: string;
   authorizationToken: string;
   bucketId: string;
+  requestBudget: B2RequestBudget;
 }
 
 export interface PrefixCleanupResult {
@@ -51,11 +65,13 @@ function apiErrorCode(body: unknown): string {
 async function fetchWithRetry(
   url: string,
   init: RequestInit,
-  operation: string
+  operation: string,
+  requestBudget: B2RequestBudget
 ): Promise<Response> {
   let lastError = 'network_error';
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    requestBudget.consumeB2Request();
     try {
       const response = await fetch(url, {
         ...init,
@@ -100,7 +116,7 @@ async function readJson<T>(response: Response, operation: string): Promise<T> {
 }
 
 async function nativeApiRequest<T>(
-  session: Pick<B2CleanupSession, 'apiUrl' | 'authorizationToken'>,
+  session: Pick<B2CleanupSession, 'apiUrl' | 'authorizationToken' | 'requestBudget'>,
   operation: string,
   body: Record<string, unknown>
 ): Promise<T> {
@@ -114,12 +130,16 @@ async function nativeApiRequest<T>(
       },
       body: JSON.stringify(body),
     },
-    operation
+    operation,
+    session.requestBudget
   );
   return readJson<T>(response, operation);
 }
 
-export async function authorizeB2Cleanup(env: Env): Promise<B2CleanupSession> {
+export async function authorizeB2Cleanup(
+  env: Env,
+  requestBudget: B2RequestBudget
+): Promise<B2CleanupSession> {
   const authorization = await fetchWithRetry(
     `${B2_NATIVE_API_BASE}/b2_authorize_account`,
     {
@@ -128,7 +148,8 @@ export async function authorizeB2Cleanup(env: Env): Promise<B2CleanupSession> {
         Authorization: `Basic ${btoa(`${env.B2_KEY_ID}:${env.B2_APPLICATION_KEY}`)}`,
       },
     },
-    'b2_authorize_account'
+    'b2_authorize_account',
+    requestBudget
   );
   const authorized = await readJson<{
     apiInfo?: { storageApi?: B2StorageApi };
@@ -165,6 +186,7 @@ export async function authorizeB2Cleanup(env: Env): Promise<B2CleanupSession> {
       {
         apiUrl: storageApi.apiUrl,
         authorizationToken,
+        requestBudget,
       },
       'b2_list_buckets',
       { bucketName: env.B2_BUCKET_NAME }
@@ -182,6 +204,7 @@ export async function authorizeB2Cleanup(env: Env): Promise<B2CleanupSession> {
     apiUrl: storageApi.apiUrl,
     authorizationToken,
     bucketId,
+    requestBudget,
   };
 }
 
@@ -235,8 +258,13 @@ export async function deleteObjectVersionsForPrefix(
   let discovered = 0;
   let deleted = 0;
 
+  if (maxDeletes <= 0) {
+    return { discovered, deleted, hasMore: true };
+  }
+
   while (deleted < maxDeletes) {
-    const page = await listFileVersions(session, prefix, Math.min(100, maxDeletes - deleted));
+    const requestedCount = Math.min(100, maxDeletes - deleted);
+    const page = await listFileVersions(session, prefix, requestedCount);
     if (page.length === 0) {
       return { discovered, deleted, hasMore: false };
     }
@@ -253,10 +281,12 @@ export async function deleteObjectVersionsForPrefix(
       });
     });
     deleted += page.length;
+    if (page.length < requestedCount) {
+      return { discovered, deleted, hasMore: false };
+    }
   }
 
-  const remaining = await listFileVersions(session, prefix, 1);
-  return { discovered, deleted, hasMore: remaining.length > 0 };
+  return { discovered, deleted, hasMore: true };
 }
 
 export async function abortUnfinishedFilesForPrefix(
@@ -267,12 +297,13 @@ export async function abortUnfinishedFilesForPrefix(
   let discovered = 0;
   let deleted = 0;
 
+  if (maxAborts <= 0) {
+    return { discovered, deleted, hasMore: true };
+  }
+
   while (deleted < maxAborts) {
-    const page = await listUnfinishedFiles(
-      session,
-      prefix,
-      Math.min(100, maxAborts - deleted)
-    );
+    const requestedCount = Math.min(100, maxAborts - deleted);
+    const page = await listUnfinishedFiles(session, prefix, requestedCount);
     if (page.length === 0) {
       return { discovered, deleted, hasMore: false };
     }
@@ -286,10 +317,12 @@ export async function abortUnfinishedFilesForPrefix(
       await nativeApiRequest(session, 'b2_cancel_large_file', { fileId: file.fileId });
     });
     deleted += page.length;
+    if (page.length < requestedCount) {
+      return { discovered, deleted, hasMore: false };
+    }
   }
 
-  const remaining = await listUnfinishedFiles(session, prefix, 1);
-  return { discovered, deleted, hasMore: remaining.length > 0 };
+  return { discovered, deleted, hasMore: true };
 }
 
 export async function verifyPrefixEmpty(

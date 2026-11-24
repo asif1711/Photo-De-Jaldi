@@ -1,8 +1,11 @@
 import {
   abortUnfinishedFilesForPrefix,
   authorizeB2Cleanup,
+  CleanupBudgetExhaustedError,
   deleteObjectVersionsForPrefix,
+  MAX_B2_SUBREQUESTS_PER_INVOCATION,
   verifyPrefixEmpty,
+  type B2RequestBudget,
 } from './b2-cleanup';
 import { getSupabaseAdmin } from './auth';
 import { Env } from './types';
@@ -10,11 +13,37 @@ import { Env } from './types';
 const EXPIRY_DETECTION_BATCH_SIZE = 50;
 const CLEANUP_BATCH_SIZE = 1;
 const CLEANUP_LEASE_SECONDS = 900;
-const MAX_OBJECT_VERSIONS_PER_RUN = 200;
-const MAX_UNFINISHED_UPLOADS_PER_RUN = 100;
+const MAX_SUBREQUESTS_PER_INVOCATION = 40;
+const FINAL_RPC_RESERVE = 2;
 const RETRY_DELAY_SECONDS = 300;
 const EMPTY_PREFIX_QUIET_PERIOD_MS = 15 * 60 * 1000;
 const BUCKET_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+class CleanupInvocationBudget implements B2RequestBudget {
+  private used = 0;
+
+  get remainingWorkRequests(): number {
+    return Math.max(0, MAX_SUBREQUESTS_PER_INVOCATION - FINAL_RPC_RESERVE - this.used);
+  }
+
+  consumeWorkRequest(): void {
+    if (this.used >= MAX_SUBREQUESTS_PER_INVOCATION - FINAL_RPC_RESERVE) {
+      throw new CleanupBudgetExhaustedError();
+    }
+    this.used += 1;
+  }
+
+  consumeFinalRequest(): void {
+    if (this.used >= MAX_SUBREQUESTS_PER_INVOCATION) {
+      throw new CleanupBudgetExhaustedError();
+    }
+    this.used += 1;
+  }
+
+  consumeB2Request(): void {
+    this.consumeWorkRequest();
+  }
+}
 
 interface ClaimedBucket {
   bucket_id: string;
@@ -32,42 +61,62 @@ function safeErrorMessage(error: unknown): string {
 async function retryCleanup(
   supabase: any,
   bucket: ClaimedBucket,
+  budget: CleanupInvocationBudget,
   reason: string | null,
   resetVerification = false
 ): Promise<void> {
-  const { data, error } = await supabase.rpc('retry_expired_bucket_cleanup', {
-    p_bucket_id: bucket.bucket_id,
-    p_lease_token: bucket.lease_token,
-    p_error: reason?.slice(0, 500) ?? null,
-    p_retry_after_seconds: RETRY_DELAY_SECONDS,
-    p_reset_verification: resetVerification,
-  });
+  let lastError = 'Retry RPC returned no confirmation';
+  for (let attempt = 0; attempt < FINAL_RPC_RESERVE; attempt += 1) {
+    budget.consumeFinalRequest();
+    try {
+      const { data, error } = await supabase.rpc('retry_expired_bucket_cleanup', {
+        p_bucket_id: bucket.bucket_id,
+        p_lease_token: bucket.lease_token,
+        p_error: reason?.slice(0, 500) ?? null,
+        p_retry_after_seconds: RETRY_DELAY_SECONDS,
+        p_reset_verification: resetVerification,
+      });
 
-  if (error) {
-    console.error('[expiry-cleanup] Could not schedule retry', {
+      if (!error) {
+        if (data !== true) {
+          console.warn('[expiry-cleanup] Retry lease was no longer current', {
+            bucketId: bucket.bucket_id,
+            attempt: bucket.cleanup_attempts,
+          });
+        }
+        return;
+      }
+      lastError = error.message;
+    } catch (error) {
+      lastError = safeErrorMessage(error);
+    }
+
+    console.warn('[expiry-cleanup] Retry scheduling attempt failed', {
       bucketId: bucket.bucket_id,
       attempt: bucket.cleanup_attempts,
-      error: error.message,
-    });
-    return;
-  }
-  if (data !== true) {
-    console.warn('[expiry-cleanup] Retry lease was no longer current', {
-      bucketId: bucket.bucket_id,
-      attempt: bucket.cleanup_attempts,
+      retry: attempt + 1,
+      error: lastError,
     });
   }
+
+  console.error('[expiry-cleanup] Could not schedule retry', {
+    bucketId: bucket.bucket_id,
+    attempt: bucket.cleanup_attempts,
+    error: lastError,
+  });
 }
 
 async function cleanupBucket(
   supabase: any,
   session: Awaited<ReturnType<typeof authorizeB2Cleanup>>,
-  bucket: ClaimedBucket
+  bucket: ClaimedBucket,
+  budget: CleanupInvocationBudget
 ): Promise<void> {
   if (!BUCKET_ID_PATTERN.test(bucket.bucket_id)) {
     throw new Error('Claimed bucket id is not a UUID');
   }
 
+  budget.consumeWorkRequest();
   const { data: record, error: bucketError } = await supabase
     .from('buckets')
     .select('id,status,expires_at,cleanup_lease_token,cleanup_verified_at')
@@ -92,22 +141,16 @@ async function cleanupBucket(
     attempt: bucket.cleanup_attempts,
   });
 
-  const multipart = await abortUnfinishedFilesForPrefix(
-    session,
-    prefix,
-    MAX_UNFINISHED_UPLOADS_PER_RUN
-  );
+  const abortLimit = Math.max(0, Math.floor((budget.remainingWorkRequests - 5) / 2));
+  const multipart = await abortUnfinishedFilesForPrefix(session, prefix, abortLimit);
   console.info('[expiry-cleanup] Unfinished multipart uploads processed', {
     bucketId: record.id,
     discovered: multipart.discovered,
     aborted: multipart.deleted,
   });
 
-  const versions = await deleteObjectVersionsForPrefix(
-    session,
-    prefix,
-    MAX_OBJECT_VERSIONS_PER_RUN
-  );
+  const versionLimit = Math.max(0, budget.remainingWorkRequests - 3);
+  const versions = await deleteObjectVersionsForPrefix(session, prefix, versionLimit);
   console.info('[expiry-cleanup] Object versions processed', {
     bucketId: record.id,
     discovered: versions.discovered,
@@ -118,7 +161,7 @@ async function cleanupBucket(
     console.info('[expiry-cleanup] More storage items remain; cleanup will continue', {
       bucketId: record.id,
     });
-    await retryCleanup(supabase, bucket, null, true);
+    await retryCleanup(supabase, bucket, budget, null, true);
     return;
   }
 
@@ -129,7 +172,13 @@ async function cleanupBucket(
     remainingMultipartUploads: verification.unfinishedUploads,
   });
   if (verification.versions > 0 || verification.unfinishedUploads > 0) {
-    await retryCleanup(supabase, bucket, 'B2 prefix was not empty after deletion', true);
+    await retryCleanup(
+      supabase,
+      bucket,
+      budget,
+      'B2 prefix was not empty after deletion',
+      true
+    );
     return;
   }
 
@@ -140,6 +189,7 @@ async function cleanupBucket(
     verifiedAt !== null && Date.now() - verifiedAt >= EMPTY_PREFIX_QUIET_PERIOD_MS;
 
   if (multipart.deleted > 0 || versions.deleted > 0 || !quietPeriodElapsed) {
+    budget.consumeFinalRequest();
     const { data: verificationRecorded, error: verificationError } = await supabase.rpc(
       'record_expired_bucket_cleanup_verification',
       {
@@ -160,6 +210,7 @@ async function cleanupBucket(
     return;
   }
 
+  budget.consumeFinalRequest();
   const { error: completeError } = await supabase.rpc(
     'complete_expired_bucket_cleanup',
     {
@@ -175,8 +226,14 @@ async function cleanupBucket(
 }
 
 export async function runExpiredBucketCleanup(env: Env): Promise<void> {
+  if (MAX_SUBREQUESTS_PER_INVOCATION !== MAX_B2_SUBREQUESTS_PER_INVOCATION) {
+    throw new Error('Expiry and B2 cleanup subrequest budgets must match');
+  }
+
+  const budget = new CleanupInvocationBudget();
   const supabase = getSupabaseAdmin(env);
 
+  budget.consumeWorkRequest();
   const { data: markedBuckets, error: markError } = await supabase.rpc(
     'mark_expired_buckets_for_cleanup',
     { p_limit: EXPIRY_DETECTION_BATCH_SIZE }
@@ -195,6 +252,7 @@ export async function runExpiredBucketCleanup(env: Env): Promise<void> {
     });
   }
 
+  budget.consumeWorkRequest();
   const { data: claimedBuckets, error: claimError } = await supabase.rpc(
     'claim_expired_buckets_for_cleanup',
     {
@@ -214,20 +272,20 @@ export async function runExpiredBucketCleanup(env: Env): Promise<void> {
 
   let session: Awaited<ReturnType<typeof authorizeB2Cleanup>>;
   try {
-    session = await authorizeB2Cleanup(env);
+    session = await authorizeB2Cleanup(env, budget);
   } catch (error) {
     const message = safeErrorMessage(error);
     console.error('[expiry-cleanup] Backblaze authorization failed', {
       bucketCount: buckets.length,
       error: message,
     });
-    for (const bucket of buckets) await retryCleanup(supabase, bucket, message);
+    for (const bucket of buckets) await retryCleanup(supabase, bucket, budget, message);
     return;
   }
 
   for (const bucket of buckets) {
     try {
-      await cleanupBucket(supabase, session, bucket);
+      await cleanupBucket(supabase, session, bucket, budget);
     } catch (error) {
       const message = safeErrorMessage(error);
       console.error('[expiry-cleanup] Cleanup failed; retry scheduled', {
@@ -235,7 +293,7 @@ export async function runExpiredBucketCleanup(env: Env): Promise<void> {
         attempt: bucket.cleanup_attempts,
         error: message,
       });
-      await retryCleanup(supabase, bucket, message);
+      await retryCleanup(supabase, bucket, budget, message);
     }
   }
 }
