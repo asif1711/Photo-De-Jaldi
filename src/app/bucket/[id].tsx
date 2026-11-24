@@ -24,16 +24,17 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Input } from '@/components/common/Input';
 import { BulkUploadQueue } from '@/components/BulkUploadQueue';
 import {
-  deleteBucket,
   getBucketById,
   updateBucket,
 } from '@/services/bucket';
 import {
   deleteFile,
+  deleteFiles,
   downloadFileToCache,
   getBucketFiles,
   getStorageUsage,
   authorizeDownload,
+  MAX_FILES_PER_DELETE_ACTION,
 } from '@/services/storage';
 import { Bucket } from '@/types';
 import { formatBytes, formatDate, formatTimeRemaining } from '@/utils/formatters';
@@ -75,6 +76,8 @@ export default function BucketDetailsScreen() {
   // File state
   const [files, setFiles] = useState<any[]>([]);
   const [filesLoading, setFilesLoading] = useState<boolean>(false);
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [deletingSelectedFiles, setDeletingSelectedFiles] = useState<boolean>(false);
   const [storageUsage, setStorageUsage] = useState<{
     total_bytes: number;
     committed_bytes: number;
@@ -118,7 +121,10 @@ export default function BucketDetailsScreen() {
     setFilesLoading(true);
     try {
       const fetched = await getBucketFiles(id);
-      setFiles(Array.from(new Map(fetched.map((file) => [file.id, file])).values()));
+      const uniqueFiles = Array.from(new Map(fetched.map((file) => [file.id, file])).values());
+      const availableFileIds = new Set(uniqueFiles.map((file) => file.id));
+      setFiles(uniqueFiles);
+      setSelectedFileIds((current) => current.filter((fileId) => availableFileIds.has(fileId)));
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to load files.');
     } finally {
@@ -191,35 +197,6 @@ export default function BucketDetailsScreen() {
     }
   };
 
-  const handleDeleteBucket = () => {
-    if (!bucket) return;
-
-    Alert.alert(
-      'Delete Bucket',
-      `Are you sure you want to permanently delete "${bucket.name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const res = await deleteBucket(bucket.id);
-            if (res.error) {
-              Alert.alert('Error', res.error);
-            } else {
-              Alert.alert('Deleted', 'Bucket was removed.', [
-                {
-                  text: 'OK',
-                  onPress: () => router.replace('/'),
-                },
-              ]);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   // --- Download flow ---
 
   const handleDownload = async (file: any) => {
@@ -276,11 +253,67 @@ export default function BucketDetailsScreen() {
           onPress: async () => {
             try {
               await deleteFile(file.id);
+              setSelectedFileIds((current) => current.filter((id) => id !== file.id));
               await fetchFiles();
               await fetchStorageUsage();
               Alert.alert('Deleted', 'File removed from bucket.');
             } catch (err: any) {
               Alert.alert('Delete Failed', err?.message || 'Failed to delete file.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const toggleFileSelection = (fileId: string) => {
+    if (selectedFileIds.includes(fileId)) {
+      setSelectedFileIds((current) => current.filter((id) => id !== fileId));
+      return;
+    }
+
+    if (selectedFileIds.length >= MAX_FILES_PER_DELETE_ACTION) {
+      Alert.alert(
+        'Selection limit reached',
+        `You can delete up to ${MAX_FILES_PER_DELETE_ACTION} files at once.`
+      );
+      return;
+    }
+
+    setSelectedFileIds((current) => [...current, fileId]);
+  };
+
+  const handleDeleteSelectedFiles = () => {
+    if (!isOwner || !selectedFileIds.length || deletingSelectedFiles) return;
+    const fileIds = [...selectedFileIds];
+
+    Alert.alert(
+      'Delete selected files',
+      `Delete ${fileIds.length} selected file${fileIds.length === 1 ? '' : 's'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingSelectedFiles(true);
+            try {
+              const result = await deleteFiles(fileIds);
+              await Promise.all([fetchFiles(), fetchStorageUsage()]);
+              setSelectedFileIds(result.failedFileIds);
+
+              if (result.failedFileIds.length) {
+                Alert.alert(
+                  'Some files were not deleted',
+                  `${result.deletedFileIds.length} deleted. ${result.failedFileIds.length} could not be deleted; select them to retry.`
+                );
+              } else {
+                Alert.alert('Deleted', `${result.deletedFileIds.length} files deleted.`);
+              }
+            } catch (err: any) {
+              Alert.alert('Delete Failed', err?.message || 'Failed to delete selected files.');
+            } finally {
+              setDeletingSelectedFiles(false);
             }
           },
         },
@@ -431,13 +464,6 @@ export default function BucketDetailsScreen() {
                     icon={<Ionicons name="create-outline" size={16} color={tokens.color.text} />}
                     style={styles.actionBtn}
                   />
-                  <Button
-                    title="Delete"
-                    variant="danger"
-                    onPress={handleDeleteBucket}
-                    icon={<Ionicons name="trash-outline" size={16} color={tokens.color.danger} />}
-                    style={styles.actionBtn}
-                  />
                 </View>
               )}
             </Card>
@@ -516,9 +542,37 @@ export default function BucketDetailsScreen() {
 
             {!filesLoading && files.length > 0 && (
               <View style={styles.fileList}>
+                {isOwner && selectedFileIds.length > 0 && (
+                  <View style={styles.selectionActions}>
+                    <Text style={[styles.selectedCount, { color: tokens.color.text }]}>
+                      {selectedFileIds.length} selected
+                    </Text>
+                    <Button
+                      title={`Delete ${selectedFileIds.length}`}
+                      variant="danger"
+                      onPress={handleDeleteSelectedFiles}
+                      disabled={deletingSelectedFiles}
+                      loading={deletingSelectedFiles}
+                      icon={
+                        !deletingSelectedFiles ? (
+                          <Ionicons name="trash-outline" size={16} color={tokens.color.danger} />
+                        ) : undefined
+                      }
+                    />
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear file selection"
+                      disabled={deletingSelectedFiles}
+                      onPress={() => setSelectedFileIds([])}
+                    >
+                      <Ionicons name="close-circle-outline" size={24} color={tokens.color.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                )}
                 {files.map((file) => {
                   const isDownloading = downloadingFileId === file.id;
                   const progress = downloadProgress[file.id] || 0;
+                  const isSelected = selectedFileIds.includes(file.id);
                   return (
                     <Card
                       key={file.id}
@@ -526,6 +580,20 @@ export default function BucketDetailsScreen() {
                       variant={isOwner ? 'default' : 'subtle'}
                     >
                       <View style={styles.fileRow}>
+                        {isOwner && (
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={`${isSelected ? 'Deselect' : 'Select'} ${file.file_name}`}
+                            disabled={deletingSelectedFiles}
+                            onPress={() => toggleFileSelection(file.id)}
+                          >
+                            <Ionicons
+                              name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                              size={24}
+                              color={isSelected ? tokens.color.primaryText : tokens.color.textMuted}
+                            />
+                          </TouchableOpacity>
+                        )}
                         <View style={styles.fileInfo}>
                           <Ionicons
                             name="document-outline"
@@ -570,6 +638,7 @@ export default function BucketDetailsScreen() {
                               title="Delete"
                               variant="danger"
                               onPress={() => handleDeleteFile(file)}
+                              disabled={deletingSelectedFiles}
                               icon={<Ionicons name="trash-outline" size={16} color={tokens.color.danger} />}
                               style={styles.deleteFileButton}
                             />
@@ -817,6 +886,20 @@ const getStyles = (colors: Tokens['color']) =>
   },
   fileList: {
     gap: Spacing.md,
+  },
+  selectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    backgroundColor: tokens.color.surface,
+  },
+  selectedCount: {
+    flex: 1,
+    fontSize: Typography.size.sm,
+    fontWeight: Typography.weight.semibold,
   },
   fileCard: {
     marginBottom: 0,

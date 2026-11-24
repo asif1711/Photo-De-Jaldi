@@ -12,7 +12,6 @@ This directory establishes the architectural boundaries for Photo De Jaldi's bac
      - `listInvitedBuckets()`
      - `inviteMember(bucketId, email)`
      - `markDownloadComplete(bucketId)`
-     - `deleteBucket(bucketId)`
    - Cloudflare Workers coordinates bucket cleanup when:
      - All invited members have completed downloads (`hasDownloadedAll === true`).
      - Expiry time is reached (via scheduled Worker CRON trigger).

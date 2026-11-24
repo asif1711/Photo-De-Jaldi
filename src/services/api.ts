@@ -22,7 +22,6 @@ export interface ApiClientContract {
   listHistoryBuckets(): Promise<Bucket[]>;
   inviteMember(bucketId: string, email: string): Promise<BucketMember>;
   markDownloadComplete(bucketId: string): Promise<{ success: boolean; allDownloaded: boolean }>;
-  deleteBucket(bucketId: string): Promise<{ success: boolean }>;
 }
 
 // Client stub placeholder - awaits backend phase

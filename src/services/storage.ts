@@ -110,6 +110,14 @@ export interface DeleteFileResult {
   freedBytes: number;
 }
 
+export const MAX_FILES_PER_DELETE_ACTION = 50;
+const FILE_DELETE_CONCURRENCY = 5;
+
+export interface DeleteFilesResult {
+  deletedFileIds: string[];
+  failedFileIds: string[];
+}
+
 // ─── Multipart Upload Types ───
 
 export interface InitiateMultipartResult {
@@ -315,6 +323,28 @@ export async function deleteFile(fileId: string): Promise<DeleteFileResult> {
   return apiFetch<DeleteFileResult>(`/files/${fileId}`, {
     method: 'DELETE',
   });
+}
+
+export async function deleteFiles(fileIds: string[]): Promise<DeleteFilesResult> {
+  const uniqueFileIds = Array.from(new Set(fileIds));
+  if (uniqueFileIds.length > MAX_FILES_PER_DELETE_ACTION) {
+    throw new Error(`You can delete up to ${MAX_FILES_PER_DELETE_ACTION} files at once.`);
+  }
+
+  const result: DeleteFilesResult = { deletedFileIds: [], failedFileIds: [] };
+  for (let start = 0; start < uniqueFileIds.length; start += FILE_DELETE_CONCURRENCY) {
+    const batch = uniqueFileIds.slice(start, start + FILE_DELETE_CONCURRENCY);
+    const settled = await Promise.allSettled(batch.map((fileId) => deleteFile(fileId)));
+    settled.forEach((outcome, index) => {
+      if (outcome.status === 'fulfilled') {
+        result.deletedFileIds.push(batch[index]);
+      } else {
+        result.failedFileIds.push(batch[index]);
+      }
+    });
+  }
+
+  return result;
 }
 
 /**

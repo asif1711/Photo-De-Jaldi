@@ -125,8 +125,7 @@ export async function getActiveBuckets(): Promise<ServiceResult<Bucket[]>> {
 }
 
 /**
- * Fetches completed or expired buckets accessible to the current user.
- * Includes any bucket where status is 'completed'/'expired' OR expires_at is in the past.
+ * Fetches unexpired completed buckets accessible to the current user.
  */
 export async function getHistoryBuckets(): Promise<ServiceResult<Bucket[]>> {
   if (!isSupabaseConfigured()) {
@@ -138,7 +137,8 @@ export async function getHistoryBuckets(): Promise<ServiceResult<Bucket[]>> {
     const { data, error } = await supabase
       .from('buckets')
       .select('*')
-      .or(`status.in.(completed,expired),expires_at.lte.${nowIso}`)
+      .eq('status', 'completed')
+      .gt('expires_at', nowIso)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -247,26 +247,5 @@ export async function updateBucket(
     };
   } catch (err: any) {
     return { data: null, error: err?.message || 'Failed to update bucket.' };
-  }
-}
-
-/**
- * Deletes a bucket by ID. Only permitted for bucket owners under RLS.
- */
-export async function deleteBucket(bucketId: string): Promise<{ success: boolean; error: string | null }> {
-  if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase is not configured in .env' };
-  }
-
-  try {
-    const { error } = await supabase.from('buckets').delete().eq('id', bucketId);
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, error: null };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to delete bucket.' };
   }
 }

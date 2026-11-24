@@ -81,7 +81,7 @@ export default function HistoryScreen() {
       }>
       <Header
         title="Activity History"
-        subtitle="Completed & expired collections"
+        subtitle="Completed collections"
       />
 
       {/* Deletion Info Card */}
