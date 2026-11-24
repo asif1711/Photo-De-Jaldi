@@ -81,6 +81,20 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="storage"
+        options={{
+          title: 'Storage',
+          headerTitle: 'Storage',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'cloud' : 'cloud-outline'}
+              size={size}
+              color={color as string}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
