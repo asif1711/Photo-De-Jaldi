@@ -71,7 +71,7 @@ npm run deploy
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/storage/usage` | Returns global capacity, committed bytes, reserved bytes, and remaining quota. |
+| `GET` | `/storage/usage` | Returns global capacity, committed bytes, reserved bytes, remaining quota, file status breakdown, and estimated download bytes today. |
 | `POST` | `/uploads/authorize` | Atomically reserves quota and generates presigned PUT URL (10 min expiry). |
 | `POST` | `/uploads/finalize` | Verifies physical B2 object via HeadObject and commits quota in Supabase. |
 | `POST` | `/uploads/abort` | Cancels incomplete upload, deletes partial B2 object, and releases reserved quota. |

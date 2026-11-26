@@ -96,6 +96,19 @@ export default function StorageScreen() {
   const progressPercent = Math.min(100, Math.max(0, percentUsed));
   const databaseLimitMismatch =
     usage !== null && usage.maximum_bytes !== APP_LIMITS.TOTAL_STORAGE_BYTES;
+  const downloadCapBytes = BACKBLAZE_B2_FREE_CAPS.DOWNLOAD_BANDWIDTH_BYTES_PER_DAY;
+  const downloadPercent =
+    usage?.download_bytes_today == null
+      ? null
+      : (usage.download_bytes_today / downloadCapBytes) * 100;
+  const downloadProgressPercent =
+    downloadPercent === null ? 0 : Math.min(100, Math.max(0, downloadPercent));
+  const downloadUsageColor =
+    downloadPercent !== null && downloadPercent >= 100
+      ? tokens.color.danger
+      : downloadPercent !== null && downloadPercent >= 75
+        ? tokens.color.warning
+        : tokens.color.primaryText;
 
   return (
     <ScrollView
@@ -229,10 +242,37 @@ export default function StorageScreen() {
 
           <SectionHeader title="Limits" style={styles.sectionHeader} />
           <Card style={styles.limitsCard}>
+            <View style={styles.downloadUsage}>
+              <View style={styles.downloadUsageHeading}>
+                <AppText variant="label">
+                  Download bandwidth today (estimated)
+                </AppText>
+                <AppText variant="label" style={{ color: downloadUsageColor }}>
+                  {usage.download_bytes_today == null
+                    ? 'usage unavailable'
+                    : `${formatDecimalBytes(usage.download_bytes_today)} / ${formatDecimalBytes(downloadCapBytes)}`}
+                </AppText>
+              </View>
+              <View style={styles.downloadTrack}>
+                <View
+                  style={[
+                    styles.downloadFill,
+                    {
+                      width: `${downloadProgressPercent}%`,
+                      backgroundColor: downloadUsageColor,
+                    },
+                  ]}
+                />
+              </View>
+              <AppText variant="caption" style={styles.limitsNote}>
+                Estimated, resets 12:00 AM GMT. The Backblaze Caps &amp; Alerts page is the source
+                of truth.
+              </AppText>
+            </View>
             <LimitRow
               icon="cloud-download-outline"
               label="Download bandwidth"
-              value={`${formatDecimalBytes(BACKBLAZE_B2_FREE_CAPS.DOWNLOAD_BANDWIDTH_BYTES_PER_DAY)}/day`}
+              value={`${formatDecimalBytes(downloadCapBytes)}/day`}
             />
             <LimitRow
               icon="swap-horizontal-outline"
@@ -245,8 +285,8 @@ export default function StorageScreen() {
               value={`${BACKBLAZE_B2_FREE_CAPS.CLASS_C_TRANSACTIONS_PER_DAY.toLocaleString()}/day`}
             />
             <AppText variant="caption" style={styles.limitsNote}>
-              Static Backblaze account caps; live bandwidth and transaction usage is not recorded
-              in the database.
+              Class B and Class C transaction limits are static account caps; live transaction
+              usage is not recorded in the database.
             </AppText>
           </Card>
         </>
@@ -416,6 +456,25 @@ const styles = StyleSheet.create({
   limitsCard: {
     paddingHorizontal: tokens.space[16],
     paddingVertical: tokens.space[8],
+  },
+  downloadUsage: {
+    gap: tokens.space[8],
+    paddingVertical: tokens.space[12],
+    borderBottomWidth: tokens.borderWidth,
+    borderBottomColor: tokens.color.border,
+  },
+  downloadUsageHeading: {
+    gap: tokens.space[4],
+  },
+  downloadTrack: {
+    height: 8,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: tokens.color.surfaceRaised,
+    overflow: 'hidden',
+  },
+  downloadFill: {
+    height: '100%',
+    borderRadius: tokens.radius.pill,
   },
   limitRow: {
     flexDirection: 'row',

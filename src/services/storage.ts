@@ -11,6 +11,7 @@ import { File, FileMode } from 'expo-file-system';
 import { supabase } from './supabase';
 import { AppConfig } from '@/constants/Config';
 import { APP_LIMITS } from '@/constants/caps';
+import { isDailyCapError } from '@/utils/downloadErrors';
 
 // Module-level cache for fetch(uri).blob() fallback — resolved once per URI per session
 const blobCache = new Map<string, Promise<Blob>>();
@@ -87,6 +88,7 @@ export interface StorageUsageResult {
   percent_used: number;
   is_limit_reached: boolean;
   file_status_breakdown: FileStatusBreakdown[];
+  download_bytes_today: number | null;
 }
 
 export interface FileStatusBreakdown {
@@ -637,8 +639,37 @@ export async function downloadFileToCache(
     }
   );
 
-  const result = await downloadResumable.downloadAsync();
+  let result: Awaited<ReturnType<typeof downloadResumable.downloadAsync>>;
+  try {
+    result = await downloadResumable.downloadAsync();
+  } catch (error) {
+    if (await isDownloadRefusedByDailyCap(downloadUrl)) {
+      throw new Error('Daily download limit reached. Please try again tomorrow.');
+    }
+    throw error;
+  }
   if (!result) throw new Error('Download failed — no result returned.');
+  if (result.status < 200 || result.status >= 300) {
+    const capError = await isDownloadRefusedByDailyCap(downloadUrl, result.status);
+    if (capError) {
+      throw new Error('Daily download limit reached. Please try again tomorrow.');
+    }
+    throw new Error(`Download failed with HTTP ${result.status}.`);
+  }
 
   return result.uri;
+}
+
+async function isDownloadRefusedByDailyCap(
+  downloadUrl: string,
+  expectedStatus?: number
+): Promise<boolean> {
+  try {
+    const response = await fetch(downloadUrl);
+    if (expectedStatus !== undefined && response.status !== expectedStatus) return false;
+    if (response.status !== 403) return false;
+    return isDailyCapError(response.status, await response.text());
+  } catch {
+    return false;
+  }
 }

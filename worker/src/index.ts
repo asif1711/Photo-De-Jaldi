@@ -177,7 +177,11 @@ export default {
       })
     );
   },
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx?: { waitUntil(promise: Promise<unknown>): void }
+  ): Promise<Response> {
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
@@ -218,32 +222,52 @@ export default {
           return errorResponse('Storage usage is temporarily unavailable.', 500);
         }
 
-        const { data: breakdownData, error: breakdownError } = await supabase.rpc(
-          'get_file_status_breakdown'
-        );
-        const breakdownRows = Array.isArray(breakdownData)
-          ? (breakdownData as FileStatusBreakdownData[])
-          : null;
+        let breakdownRows: FileStatusBreakdownData[] = [];
         const expectedStatuses: FileStatusBreakdownData['file_status'][] = [
           'uploaded',
           'expired',
           'deleted',
         ];
-        const validBreakdown =
-          breakdownRows?.length === expectedStatuses.length &&
-          expectedStatuses.every((status) =>
-            breakdownRows.some(
-              (row) =>
-                row.file_status === status &&
-                Number.isFinite(row.file_count) &&
-                Number.isFinite(row.total_bytes)
-            )
+        try {
+          const { data: breakdownData, error: breakdownError } = await supabase.rpc(
+            'get_file_status_breakdown'
           );
-        if (breakdownError || !breakdownRows || !validBreakdown) {
+          if (breakdownError) throw breakdownError;
+          const rows = Array.isArray(breakdownData)
+            ? (breakdownData as FileStatusBreakdownData[])
+            : null;
+          const validBreakdown =
+            rows?.length === expectedStatuses.length &&
+            expectedStatuses.every((status) =>
+              rows.some(
+                (row) =>
+                  row.file_status === status &&
+                  Number.isFinite(row.file_count) &&
+                  Number.isFinite(row.total_bytes)
+              )
+            );
+          if (!rows || !validBreakdown) {
+            throw new Error('Invalid aggregate response');
+          }
+          breakdownRows = rows;
+        } catch (error) {
           console.error('[storage] File status breakdown retrieval failed', {
-            error: breakdownError?.message ?? 'Invalid aggregate response',
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
-          return errorResponse('Storage breakdown is temporarily unavailable.', 500);
+        }
+
+        let downloadBytesToday: number | null = null;
+        try {
+          const { data, error } = await supabase.rpc('get_download_usage_today');
+          if (error) throw error;
+          if (typeof data !== 'number' || !Number.isFinite(data) || data < 0) {
+            throw new Error('Invalid download usage response');
+          }
+          downloadBytesToday = data;
+        } catch (error) {
+          console.error('[storage] Download usage retrieval failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
 
         return jsonResponse({
@@ -252,6 +276,7 @@ export default {
           limit_bytes: usage.maximum_bytes,
           utilization_percent: usage.percent_used,
           file_status_breakdown: breakdownRows,
+          download_bytes_today: downloadBytesToday,
         });
       }
 
@@ -1175,6 +1200,33 @@ export default {
           fileName,
           300
         );
+
+        if (file && Number.isSafeInteger(file.file_size) && file.file_size >= 0) {
+          const recordUsage = async () => {
+            try {
+              const { error } = await supabase.rpc('record_download_usage', {
+                p_bytes: file.file_size,
+              });
+              if (error) throw error;
+            } catch (error) {
+              console.error('[downloads] Usage recording failed', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+            }
+          };
+
+          if (ctx) {
+            try {
+              ctx.waitUntil(recordUsage());
+            } catch (error) {
+              console.error('[downloads] Could not schedule usage recording', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+            }
+          } else {
+            await recordUsage();
+          }
+        }
 
         return jsonResponse({
           success: true,
