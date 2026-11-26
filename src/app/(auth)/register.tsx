@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -30,6 +30,7 @@ export default function RegisterScreen() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
+  const submissionInProgress = useRef(false);
 
   const validate = () => {
     let isValid = true;
@@ -65,24 +66,29 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!validate()) return;
+    if (submissionInProgress.current || !validate()) return;
 
+    submissionInProgress.current = true;
     setLoading(true);
     setErrorMessage(null);
     setInfoMessage(null);
 
-    const { success, error, needsEmailConfirmation } = await signUp(
-      email.trim(),
-      password
-    );
-    setLoading(false);
-
-    if (!success && error) {
-      setErrorMessage(error);
-    } else if (needsEmailConfirmation) {
-      setInfoMessage(
-        'Account created! A confirmation link has been sent to your email. Please verify your address and then sign in.'
+    try {
+      const { success, error, needsEmailConfirmation } = await signUp(
+        email.trim(),
+        password
       );
+
+      if (!success && error) {
+        setErrorMessage(error);
+      } else if (needsEmailConfirmation) {
+        setInfoMessage(
+          'Account created! A confirmation link has been sent to your email. Please verify your address and then sign in.'
+        );
+      }
+    } finally {
+      submissionInProgress.current = false;
+      setLoading(false);
     }
   };
 

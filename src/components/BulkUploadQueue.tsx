@@ -495,7 +495,12 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
   };
 
   const startUploads = () => {
-    if (!queueRef.current.some((item) => item.status === 'waiting')) return;
+    if (
+      batchActiveRef.current ||
+      !queueRef.current.some((item) => item.status === 'waiting')
+    ) {
+      return;
+    }
     batchActiveRef.current = true;
     setBatchActive(true);
     startPendingRef.current();

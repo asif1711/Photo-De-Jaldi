@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +15,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card } from '@/components/common/Card';
 import { createBucket } from '@/services/bucket';
+import { showAlert } from '@/utils/alert';
 import { formatDate } from '@/utils/formatters';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
@@ -41,6 +41,7 @@ export default function CreateBucketScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+  const submissionInProgress = useRef(false);
 
   // Calculate target expiry time based on selected hours
   const calculateExpiryDate = (hours: number): Date => {
@@ -72,34 +73,38 @@ export default function CreateBucketScreen() {
   };
 
   const handleCreate = async () => {
-    if (!validate() || loading) return;
+    if (submissionInProgress.current || !validate()) return;
 
+    submissionInProgress.current = true;
     setLoading(true);
     setErrorMessage(null);
 
-    const result = await createBucket({
-      name: name.trim(),
-      description: description.trim() || undefined,
-      expires_at: calculatedExpiry.toISOString(),
-    });
+    try {
+      const result = await createBucket({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        expires_at: calculatedExpiry.toISOString(),
+      });
 
-    setLoading(false);
-
-    if (result.error) {
-      setErrorMessage(result.error);
-    } else if (result.data) {
-      Alert.alert(
-        'Success',
-        `Bucket "${result.data.name}" created successfully!`,
-        [
-          {
-            text: 'View Bucket',
-            onPress: () => {
-              router.replace(`/bucket/${result.data!.id}`);
+      if (result.error) {
+        setErrorMessage(result.error);
+      } else if (result.data) {
+        showAlert(
+          'Success',
+          `Bucket "${result.data.name}" created successfully!`,
+          [
+            {
+              text: 'View Bucket',
+              onPress: () => {
+                router.replace(`/bucket/${result.data!.id}`);
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      }
+    } finally {
+      submissionInProgress.current = false;
+      setLoading(false);
     }
   };
 

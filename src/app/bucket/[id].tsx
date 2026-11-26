@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -38,6 +37,7 @@ import {
 } from '@/services/storage';
 import { Bucket } from '@/types';
 import { formatBytes, formatDate, formatTimeRemaining } from '@/utils/formatters';
+import { showAlert } from '@/utils/alert';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
 
 interface ExpiryPreset {
@@ -194,7 +194,7 @@ export default function BucketDetailsScreen() {
     } else if (result.data) {
       setBucket(result.data);
       setIsEditing(false);
-      Alert.alert('Updated', 'Bucket details updated successfully.');
+      showAlert('Updated', 'Bucket details updated successfully.');
     }
   };
 
@@ -253,14 +253,14 @@ export default function BucketDetailsScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(localUri, { dialogTitle: 'Save File' });
       } else {
-        Alert.alert('Downloaded', `File saved to ${localUri}`);
+        showAlert('Downloaded', `File saved to ${localUri}`);
       }
     } catch (err: any) {
       setDownloadProgress((prev) => {
         const { [file.id]: _removed, ...rest } = prev;
         return rest;
       });
-      Alert.alert('Download Failed', err?.message || 'Failed to download file.');
+      showAlert('Download Failed', err?.message || 'Failed to download file.');
     } finally {
       setDownloadingFileId(null);
     }
@@ -271,7 +271,7 @@ export default function BucketDetailsScreen() {
   const handleDeleteFile = async (file: any) => {
     if (!file) return;
 
-    Alert.alert(
+    showAlert(
       'Delete File',
       `Are you sure you want to delete "${file.file_name}"?`,
       [
@@ -285,9 +285,9 @@ export default function BucketDetailsScreen() {
               setSelectedFileIds((current) => current.filter((id) => id !== file.id));
               await fetchFiles();
               await fetchStorageUsage();
-              Alert.alert('Deleted', 'File removed from bucket.');
+              showAlert('Deleted', 'File removed from bucket.');
             } catch (err: any) {
-              Alert.alert('Delete Failed', err?.message || 'Failed to delete file.');
+              showAlert('Delete Failed', err?.message || 'Failed to delete file.');
             }
           },
         },
@@ -302,7 +302,7 @@ export default function BucketDetailsScreen() {
     }
 
     if (selectedFileIds.length >= MAX_FILES_PER_DELETE_ACTION) {
-      Alert.alert(
+      showAlert(
         'Selection limit reached',
         `You can delete up to ${MAX_FILES_PER_DELETE_ACTION} files at once.`
       );
@@ -316,7 +316,7 @@ export default function BucketDetailsScreen() {
     if (!isOwner || !selectedFileIds.length || deletingSelectedFiles) return;
     const fileIds = [...selectedFileIds];
 
-    Alert.alert(
+    showAlert(
       'Delete selected files',
       `Delete ${fileIds.length} selected file${fileIds.length === 1 ? '' : 's'}?`,
       [
@@ -332,15 +332,15 @@ export default function BucketDetailsScreen() {
               setSelectedFileIds(result.failedFileIds);
 
               if (result.failedFileIds.length) {
-                Alert.alert(
+                showAlert(
                   'Some files were not deleted',
                   `${result.deletedFileIds.length} deleted. ${result.failedFileIds.length} could not be deleted; select them to retry.`
                 );
               } else {
-                Alert.alert('Deleted', `${result.deletedFileIds.length} files deleted.`);
+                showAlert('Deleted', `${result.deletedFileIds.length} files deleted.`);
               }
             } catch (err: any) {
-              Alert.alert('Delete Failed', err?.message || 'Failed to delete selected files.');
+              showAlert('Delete Failed', err?.message || 'Failed to delete selected files.');
             } finally {
               setDeletingSelectedFiles(false);
             }
