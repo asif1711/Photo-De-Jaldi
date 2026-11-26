@@ -35,6 +35,12 @@ import {
   authorizeDownload,
   MAX_FILES_PER_DELETE_ACTION,
 } from '@/services/storage';
+import {
+  chooseAndroidDownloadFolder,
+  clearAndroidDownloadFolder,
+  getAndroidDownloadFolderUri,
+  saveCachedFileToAndroidFolder,
+} from '@/services/androidDownloadFolder';
 import { Bucket } from '@/types';
 import { formatBytes, formatDate, formatTimeRemaining } from '@/utils/formatters';
 import { showAlert } from '@/utils/alert';
@@ -200,6 +206,67 @@ export default function BucketDetailsScreen() {
 
   // --- Download flow ---
 
+  const requestAndroidDownloadFolder = async (): Promise<string | null> => {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      showAlert(
+        'Choose a download folder',
+        'On Android 11+, choose or create a subfolder such as Download/PhotoDeJaldi. The Downloads root itself is not selectable.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Choose folder', onPress: () => resolve(true) },
+        ]
+      );
+    });
+    if (!confirmed) return null;
+
+    try {
+      return await chooseAndroidDownloadFolder();
+    } catch (error) {
+      console.warn('Could not choose an Android download folder.', error);
+      return null;
+    }
+  };
+
+  const saveToAndroidDownloadFolder = async (
+    localUri: string,
+    fileName: string
+  ): Promise<{ folderName: string; fileName: string } | null> => {
+    let folderUri: string | null = null;
+    try {
+      folderUri = await getAndroidDownloadFolderUri();
+    } catch (error) {
+      console.warn('Could not read the saved Android download folder.', error);
+    }
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (!folderUri) {
+        folderUri = await requestAndroidDownloadFolder();
+        if (!folderUri) return null;
+      }
+
+      try {
+        return await saveCachedFileToAndroidFolder(localUri, folderUri, fileName);
+      } catch (error) {
+        console.warn('Could not save into the selected Android download folder.', error);
+        try {
+          await clearAndroidDownloadFolder();
+        } catch (clearError) {
+          console.warn('Could not clear the saved Android download folder.', clearError);
+        }
+        folderUri = null;
+      }
+    }
+
+    return null;
+  };
+
+  const handleChangeAndroidDownloadFolder = async () => {
+    const folderUri = await requestAndroidDownloadFolder();
+    if (folderUri) {
+      showAlert('Download folder changed', 'Future Android downloads will use the selected folder.');
+    }
+  };
+
   const handleDownload = async (file: any) => {
     if (!file || downloadingFileId === file.id) return;
     setDownloadingFileId(file.id);
@@ -250,7 +317,16 @@ export default function BucketDetailsScreen() {
 
       setDownloadProgress((prev) => ({ ...prev, [file.id]: 100 }));
 
-      if (await Sharing.isAvailableAsync()) {
+      if (Platform.OS === 'android') {
+        const savedFile = await saveToAndroidDownloadFolder(localUri, result.fileName);
+        if (savedFile) {
+          showAlert('Downloaded', `Saved to ${savedFile.folderName}/${savedFile.fileName}`);
+        } else if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(localUri, { dialogTitle: 'Save File' });
+        } else {
+          showAlert('Downloaded', `File saved to ${localUri}`);
+        }
+      } else if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(localUri, { dialogTitle: 'Save File' });
       } else {
         showAlert('Downloaded', `File saved to ${localUri}`);
@@ -540,6 +616,18 @@ export default function BucketDetailsScreen() {
               <Text style={[styles.sectionTitle, { color: tokens.color.text }]}>Files</Text>
               <Badge label={filesLoading ? 'Loading' : 'Files'} variant="neutral" />
             </View>
+
+            {Platform.OS === 'android' ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => void handleChangeAndroidDownloadFolder()}
+                style={{ alignSelf: 'flex-start', marginBottom: Spacing.sm }}
+              >
+                <Text style={{ color: tokens.color.info, fontSize: Typography.size.sm }}>
+                  Change download folder
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             {Platform.OS === 'web' && downloadNote ? (
               <View
