@@ -90,6 +90,7 @@ export default function BucketDetailsScreen() {
   // Download state
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
+  const [downloadNote, setDownloadNote] = useState<string | null>(null);
 
   const fetchBucket = useCallback(
     async (isRefresh = false) => {
@@ -202,6 +203,34 @@ export default function BucketDetailsScreen() {
   const handleDownload = async (file: any) => {
     if (!file || downloadingFileId === file.id) return;
     setDownloadingFileId(file.id);
+
+    if (Platform.OS === 'web') {
+      try {
+        const result = await authorizeDownload(file.id);
+        const anchor = document.createElement('a');
+        anchor.href = result.downloadUrl;
+        anchor.download = result.fileName;
+        anchor.rel = 'noopener';
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        try {
+          anchor.click();
+        } finally {
+          anchor.remove();
+        }
+        setDownloadNote(
+          'If the download does not start, try again later; daily limits may apply'
+        );
+      } catch (error) {
+        setDownloadNote(
+          error instanceof Error ? error.message : 'Could not start the download.'
+        );
+      } finally {
+        setDownloadingFileId(null);
+      }
+      return;
+    }
+
     setDownloadProgress((prev) => ({ ...prev, [file.id]: 0 }));
 
     try {
@@ -512,6 +541,21 @@ export default function BucketDetailsScreen() {
               <Badge label={filesLoading ? 'Loading' : 'Files'} variant="neutral" />
             </View>
 
+            {Platform.OS === 'web' && downloadNote ? (
+              <View
+                style={{
+                  padding: Spacing.sm,
+                  marginBottom: Spacing.sm,
+                  borderRadius: BorderRadius.sm,
+                  backgroundColor: tokens.color.surfaceRaised,
+                }}
+              >
+                <Text style={{ color: tokens.color.textMuted, fontSize: Typography.size.xs }}>
+                  {downloadNote}
+                </Text>
+              </View>
+            ) : null}
+
             <BulkUploadQueue
               bucketId={bucket.id}
               onUploaded={() => {
@@ -535,7 +579,11 @@ export default function BucketDetailsScreen() {
                 <EmptyState
                   icon={<Ionicons name="cloud-upload-outline" size={36} color={tokens.color.info} />}
                   title="No Files Yet"
-                  description="Choose photos, videos, or other files above to add them to this collection."
+                  description={
+                    Platform.OS === 'web'
+                      ? 'This collection has no files yet.'
+                      : 'Choose photos, videos, or other files above to add them to this collection.'
+                  }
                 />
               </Card>
             )}
@@ -611,19 +659,28 @@ export default function BucketDetailsScreen() {
                         </View>
                         <View style={styles.fileActions}>
                           {isDownloading ? (
-                            <View style={styles.downloadProgressContainer}>
-                              <View style={styles.downloadProgressBarOuter}>
-                                <View
-                                  style={[
-                                    styles.downloadProgressBarInner,
-                                    { width: progress },
-                                  ]}
-                                />
+                            Platform.OS === 'web' ? (
+                              <View style={{ alignItems: 'center', gap: Spacing.xs }}>
+                                <ActivityIndicator size="small" color={tokens.color.info} />
+                                <Text style={{ color: tokens.color.textMuted }}>
+                                  Preparing download…
+                                </Text>
                               </View>
-                              <Text style={[styles.downloadProgressText, { color: tokens.color.textMuted }]}>
-                                {progress}%
-                              </Text>
-                            </View>
+                            ) : (
+                              <View style={styles.downloadProgressContainer}>
+                                <View style={styles.downloadProgressBarOuter}>
+                                  <View
+                                    style={[
+                                      styles.downloadProgressBarInner,
+                                      { width: progress },
+                                    ]}
+                                  />
+                                </View>
+                                <Text style={[styles.downloadProgressText, { color: tokens.color.textMuted }]}>
+                                  {progress}%
+                                </Text>
+                              </View>
+                            )
                           ) : (
                             <Button
                               title="Download"

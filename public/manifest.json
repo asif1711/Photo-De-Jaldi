@@ -1,0 +1,16 @@
+{
+  "name": "Photo De Jaldi",
+  "short_name": "Photo Jaldi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0B0E0C",
+  "background_color": "#0B0E0C",
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}

@@ -125,7 +125,27 @@ function getFriendlyError(error: unknown): string {
   return 'Upload failed. Please try again.';
 }
 
-export function BulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
+export function BulkUploadQueue(props: BulkUploadQueueProps) {
+  if (Platform.OS === 'web') {
+    return (
+      <Card variant="subtle">
+        <Text
+          style={{
+            color: tokens.color.textMuted,
+            textAlign: 'center',
+            paddingVertical: Spacing.md,
+          }}
+        >
+          Uploads are available in the Android app. Web upload is coming soon.
+        </Text>
+      </Card>
+    );
+  }
+
+  return <NativeBulkUploadQueue {...props} />;
+}
+
+function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [batchActive, setBatchActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
