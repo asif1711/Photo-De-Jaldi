@@ -8,6 +8,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import { File, FileMode } from 'expo-file-system';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { AppConfig } from '@/constants/Config';
 import { APP_LIMITS } from '@/constants/caps';
@@ -573,6 +574,83 @@ export async function uploadPart(
     partNumber,
     etag,
   };
+}
+
+export async function uploadWebPart(
+  uploadUrl: string,
+  body: Blob,
+  partNumber: number,
+  onProgress: (loadedBytes: number, totalBytes: number) => void,
+  signal: AbortSignal
+): Promise<UploadPartResult> {
+  if (Platform.OS !== 'web') {
+    throw new Error('Web multipart uploads are only available in a browser.');
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    let settled = false;
+    const abortRequest = () => request.abort();
+
+    const cleanup = () => {
+      signal.removeEventListener('abort', abortRequest);
+    };
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    request.open('PUT', uploadUrl);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded, event.total);
+    };
+    request.onload = () => {
+      if (request.status < 200 || request.status >= 300) {
+        const retryable = request.status === 429 || request.status >= 500;
+        fail(
+          uploadErr(
+            `Part ${partNumber} upload failed with HTTP ${request.status}: ${request.responseText}`,
+            retryable
+          )
+        );
+        return;
+      }
+
+      const etag =
+        request.getResponseHeader('etag') || request.getResponseHeader('ETag') || '';
+      if (!etag) {
+        fail(
+          uploadErr(
+            'The browser could not read the ETag response header. Check that the bucket CORS rule exposes ETag.',
+            false
+          )
+        );
+        return;
+      }
+
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve({ partNumber, etag });
+    };
+    request.onerror = () => {
+      fail(uploadErr(`Network error uploading part ${partNumber}.`, true));
+    };
+    request.onabort = () => {
+      fail(uploadErr(`Upload of part ${partNumber} was interrupted.`, true));
+    };
+
+    if (signal.aborted) {
+      fail(uploadErr(`Upload of part ${partNumber} was interrupted.`, true));
+      return;
+    }
+    signal.addEventListener('abort', abortRequest, { once: true });
+
+    // The presigned URL signs only the host; let the browser send no extra headers.
+    request.send(body);
+  });
 }
 
 /**

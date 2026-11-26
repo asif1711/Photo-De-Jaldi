@@ -15,6 +15,8 @@ export const CLOUDFLARE_WORKERS_FREE_CAPS = {
   CRON_TRIGGERS_PER_ACCOUNT: 5, // Source: Cloudflare Workers Free plan Cron Trigger cap.
 } as const;
 
+export const WEB_MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
+
 // Verify Cloudflare's separate "internal services" subrequest limit in their docs before relying on it.
 export const APP_LIMITS = {
   TOTAL_STORAGE_BYTES: 9_000_000_000, // Source: public.global_storage_usage.maximum_bytes in the quota migration (decimal bytes).

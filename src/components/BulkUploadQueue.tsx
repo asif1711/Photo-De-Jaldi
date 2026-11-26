@@ -17,7 +17,7 @@ import { tokens } from '@/theme/tokens';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { FileTypeIcon } from '@/theme/components';
-import { APP_LIMITS } from '@/constants/caps';
+import { APP_LIMITS, WEB_MAX_FILE_SIZE_BYTES } from '@/constants/caps';
 import {
   abortMultipartUpload,
   completeMultipartUpload,
@@ -27,16 +27,29 @@ import {
   recordMultipartPart,
   releaseCachedBlob,
   uploadPart,
+  uploadWebPart,
   type InitiateMultipartResult,
 } from '@/services/storage';
 import { formatBytes } from '@/utils/formatters';
+import { getMultipartPartRange, getMultipartPartSlice } from '@/utils/multipart';
+import { showAlert } from '@/utils/alert';
 import { BorderRadius, Spacing, Typography } from '@/constants/Layout';
+
+const WEB_UPLOAD_LIMIT_MESSAGE =
+  "Files over 100 MB can't be uploaded from the browser. Use the Android app for larger files.";
+const WEB_UPLOAD_ACTIVE_KEY = 'photo-de-jaldi:web-upload-active';
+const WEB_UPLOAD_NOTICE_KEY = 'photo-de-jaldi:web-upload-notice-shown';
+const WEB_UPLOAD_RESTART_MESSAGE =
+  'An earlier browser upload was interrupted. Browser files cannot be restored; select them again and start over.';
+const KEEP_SCREEN_OPEN_MESSAGE =
+  "Keep this screen open and don't lock your phone until uploads finish.";
 
 interface LocalUploadFile {
   uri: string;
   name: string;
   type: string;
   size: number;
+  webFile?: File;
 }
 
 type QueueStatus = 'waiting' | 'uploading' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -100,6 +113,12 @@ function VideoPreview({ uri }: { uri: string }) {
 
 function getFriendlyError(error: unknown): string {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (message.includes('etag response header')) {
+    return 'The upload could not read its ETag. Check that the bucket CORS rule exposes ETag.';
+  }
+  if (message.includes('multipart upload session') || message.includes('upload session')) {
+    return 'This upload session expired. Retry the file to start a new upload.';
+  }
   if (message.includes('5 gb') || message.includes('maximum')) {
     return 'This file is larger than the 5 GB per-file limit.';
   }
@@ -126,22 +145,6 @@ function getFriendlyError(error: unknown): string {
 }
 
 export function BulkUploadQueue(props: BulkUploadQueueProps) {
-  if (Platform.OS === 'web') {
-    return (
-      <Card variant="subtle">
-        <Text
-          style={{
-            color: tokens.color.textMuted,
-            textAlign: 'center',
-            paddingVertical: Spacing.md,
-          }}
-        >
-          Uploads are available in the Android app. Web upload is coming soon.
-        </Text>
-      </Card>
-    );
-  }
-
   return <NativeBulkUploadQueue {...props} />;
 }
 
@@ -152,16 +155,25 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<LocalUploadFile | null>(null);
+  const [hasInterruptedUpload, setHasInterruptedUpload] = useState(false);
   const queueRef = useRef<QueueItem[]>([]);
   const disposedRef = useRef(false);
   const batchActiveRef = useRef(false);
   const pauseRequestedRef = useRef(false);
+  const pageHiddenRef = useRef(false);
+  const pageVisibilityVersionRef = useRef(0);
   const activeItemsRef = useRef<Set<string>>(new Set());
   const cancelRequestedRef = useRef<Set<string>>(new Set());
   const finalizingRef = useRef<Set<string>>(new Set());
   const sessionsRef = useRef<Map<string, UploadSession>>(new Map());
+  const statusRefreshIdsRef = useRef<Set<string>>(new Set());
+  const webPartControllersRef = useRef<Map<string, AbortController>>(new Map());
   const progressUpdatedAtRef = useRef<Map<string, number>>(new Map());
   const createdObjectUrlsRef = useRef<Set<string>>(new Set());
+  const preserveInterruptedMarkerRef = useRef(false);
+  const screenOpenAlertShownRef = useRef(false);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const wakeLockRequestRef = useRef(false);
   const dropZoneRef = useRef<HostInstance | null>(null);
   const startPendingRef = useRef<() => void>(() => undefined);
 
@@ -177,6 +189,50 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
     [publishQueue]
   );
 
+  const markWebUploadActive = () => {
+    if (Platform.OS !== 'web') return;
+    try {
+      localStorage.setItem(WEB_UPLOAD_ACTIVE_KEY, 'active');
+    } catch {
+      // Uploads do not depend on browser storage; this only enables a restart notice.
+    }
+  };
+
+  const clearWebUploadMarker = () => {
+    if (Platform.OS !== 'web' || preserveInterruptedMarkerRef.current) return;
+    try {
+      localStorage.removeItem(WEB_UPLOAD_ACTIVE_KEY);
+    } catch {
+      // Uploads do not depend on browser storage; this only enables a restart notice.
+    }
+  };
+
+  const showKeepScreenOpenAlertOnce = () => {
+    if (Platform.OS !== 'web' || screenOpenAlertShownRef.current) return;
+    screenOpenAlertShownRef.current = true;
+    try {
+      if (sessionStorage.getItem(WEB_UPLOAD_NOTICE_KEY) === 'shown') return;
+      sessionStorage.setItem(WEB_UPLOAD_NOTICE_KEY, 'shown');
+    } catch {
+      // Fall back to the component ref when session storage is unavailable.
+    }
+    showAlert('Keep screen on during upload', KEEP_SCREEN_OPEN_MESSAGE);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    let wasInterrupted = false;
+    try {
+      wasInterrupted = localStorage.getItem(WEB_UPLOAD_ACTIVE_KEY) === 'active';
+      if (wasInterrupted) localStorage.removeItem(WEB_UPLOAD_ACTIVE_KEY);
+    } catch {
+      return;
+    }
+    if (!wasInterrupted) return;
+    const timer = window.setTimeout(() => setHasInterruptedUpload(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const addFiles = useCallback(
     async (assets: DocumentPicker.DocumentPickerAsset[]) => {
       const newItems: QueueItem[] = [];
@@ -184,7 +240,11 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
       for (const asset of assets) {
         if (queueRef.current.some((item) => item.file.uri === asset.uri)) continue;
 
-        let size = asset.size ?? 0;
+        const webFile = Platform.OS === 'web' ? asset.file ?? undefined : undefined;
+        let size =
+          Platform.OS === 'web'
+            ? webFile?.size ?? asset.size ?? 0
+            : asset.size ?? 0;
         if (!size && Platform.OS !== 'web') {
           try {
             const info = await FileSystem.getInfoAsync(asset.uri);
@@ -197,13 +257,18 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
         const file: LocalUploadFile = {
           uri: asset.uri,
           name: asset.name,
-          type: asset.mimeType || 'application/octet-stream',
+          type: asset.mimeType || webFile?.type || 'application/octet-stream',
           size,
+          webFile,
         };
         const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const error =
           size <= 0
             ? 'This file is empty or unavailable.'
+            : Platform.OS === 'web' && size > WEB_MAX_FILE_SIZE_BYTES
+              ? WEB_UPLOAD_LIMIT_MESSAGE
+              : Platform.OS === 'web' && !webFile
+                ? 'The browser file is unavailable. Please choose the file again.'
             : size > APP_LIMITS.MAX_FILE_SIZE_BYTES
               ? `This file is larger than the 5 GB per-file limit (${formatBytes(size)}).`
               : undefined;
@@ -248,14 +313,25 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
   const uploadItem = useCallback(
     async (item: QueueItem) => {
       const { file, id } = item;
-      if (file.size <= 0 || file.size > APP_LIMITS.MAX_FILE_SIZE_BYTES) {
+      const tooLargeOnWeb =
+        Platform.OS === 'web' && file.size > WEB_MAX_FILE_SIZE_BYTES;
+      const missingWebFile = Platform.OS === 'web' && !file.webFile;
+      if (
+        file.size <= 0 ||
+        file.size > APP_LIMITS.MAX_FILE_SIZE_BYTES ||
+        tooLargeOnWeb ||
+        missingWebFile
+      ) {
         updateItem(id, (current) => ({
           ...current,
           status: 'failed',
-          error:
-            file.size > APP_LIMITS.MAX_FILE_SIZE_BYTES
-              ? 'This file is larger than the 5 GB per-file limit.'
-              : 'This file is empty or unavailable.',
+          error: tooLargeOnWeb
+            ? WEB_UPLOAD_LIMIT_MESSAGE
+            : missingWebFile
+              ? 'The browser file is unavailable. Please choose the file again.'
+              : file.size > APP_LIMITS.MAX_FILE_SIZE_BYTES
+                ? 'This file is larger than the 5 GB per-file limit.'
+                : 'This file is empty or unavailable.',
         }));
         return;
       }
@@ -263,17 +339,40 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
       let session = sessionsRef.current.get(id);
       const waitForResume = async () => {
         while (
-          pauseRequestedRef.current &&
+          (pauseRequestedRef.current || pageHiddenRef.current) &&
           !cancelRequestedRef.current.has(id) &&
           !disposedRef.current
         ) {
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
       };
+      const refreshSessionParts = async () => {
+        if (!statusRefreshIdsRef.current.delete(id) || !session) return;
+        const status = await getMultipartStatus(session.result.multipartUploadId);
+        if (
+          status.status === 'expired' ||
+          status.status === 'aborted' ||
+          new Date(status.expiresAt).getTime() <= Date.now()
+        ) {
+          sessionsRef.current.delete(id);
+          session = undefined;
+          throw new Error('Multipart upload session has expired.');
+        }
+        session.parts = new Map(
+          status.parts.map((part) => [
+            part.partNumber,
+            { etag: part.etag, size: part.partSize },
+          ])
+        );
+      };
       try {
         if (session) {
           const status = await getMultipartStatus(session.result.multipartUploadId);
-          if (status.status === 'expired' || status.status === 'aborted') {
+          if (
+            status.status === 'expired' ||
+            status.status === 'aborted' ||
+            new Date(status.expiresAt).getTime() <= Date.now()
+          ) {
             sessionsRef.current.delete(id);
             session = undefined;
           } else {
@@ -311,6 +410,7 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
 
         for (let partNumber = 1; partNumber <= session.result.totalParts; partNumber++) {
           await waitForResume();
+          await refreshSessionParts();
           if (cancelRequestedRef.current.has(id)) {
             await abortMultipartUpload(session.result.multipartUploadId);
             sessionsRef.current.delete(id);
@@ -324,8 +424,11 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
           }
           if (session.parts.has(partNumber)) continue;
 
-          const startByte = (partNumber - 1) * session.result.partSize;
-          const endByte = Math.min(startByte + session.result.partSize, file.size);
+          const { startByte, endByte } = getMultipartPartRange(
+            file.size,
+            session.result.partSize,
+            partNumber
+          );
           let uploadedPart: { partNumber: number; etag: string } | null = null;
           let lastError: unknown;
 
@@ -333,37 +436,83 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
             await waitForResume();
             if (cancelRequestedRef.current.has(id)) break;
             try {
+              await refreshSessionParts();
+              if (session.parts.has(partNumber)) {
+                const recordedPart = session.parts.get(partNumber);
+                if (recordedPart) {
+                  uploadedPart = { partNumber, etag: recordedPart.etag };
+                  break;
+                }
+              }
+              const visibilityVersion = pageVisibilityVersionRef.current;
               const partUrl = await getPartUploadUrl(
                 session.result.multipartUploadId,
                 partNumber
               );
               await waitForResume();
               if (cancelRequestedRef.current.has(id)) break;
+              if (visibilityVersion !== pageVisibilityVersionRef.current) {
+                await refreshSessionParts();
+                const recordedPart = session.parts.get(partNumber);
+                if (recordedPart) {
+                  uploadedPart = { partNumber, etag: recordedPart.etag };
+                  break;
+                }
+                attempt -= 1;
+                continue;
+              }
               const bytesBeforePart = Array.from(session.parts.values()).reduce(
                 (total, part) => total + part.size,
                 0
               );
-              const result = await uploadPart(
-                partUrl.uploadUrl,
-                file.uri,
-                partNumber,
-                startByte,
-                endByte,
-                file.type,
-                (loadedBytes) => {
-                  const now = Date.now();
-                  const lastUpdate = progressUpdatedAtRef.current.get(id) ?? 0;
-                  if (now - lastUpdate < 100 && loadedBytes < endByte - startByte) return;
-                  progressUpdatedAtRef.current.set(id, now);
-                  updateItem(id, (current) => ({
-                    ...current,
-                    progress: Math.min(
-                      100,
-                      Math.floor(((bytesBeforePart + loadedBytes) / file.size) * 100)
-                    ),
-                  }));
+              const reportProgress = (loadedBytes: number) => {
+                const now = Date.now();
+                const lastUpdate = progressUpdatedAtRef.current.get(id) ?? 0;
+                if (now - lastUpdate < 100 && loadedBytes < endByte - startByte) return;
+                progressUpdatedAtRef.current.set(id, now);
+                updateItem(id, (current) => ({
+                  ...current,
+                  progress: Math.min(
+                    100,
+                    Math.floor(((bytesBeforePart + loadedBytes) / file.size) * 100)
+                  ),
+                }));
+              };
+              let result: { partNumber: number; etag: string };
+              if (Platform.OS === 'web') {
+                const webFile = file.webFile;
+                if (!webFile) throw new Error('The browser file is unavailable.');
+                const { blob: partBlob } = getMultipartPartSlice(
+                  webFile,
+                  session.result.partSize,
+                  partNumber
+                );
+                const controller = new AbortController();
+                webPartControllersRef.current.set(id, controller);
+                try {
+                  result = await uploadWebPart(
+                    partUrl.uploadUrl,
+                    partBlob,
+                    partNumber,
+                    reportProgress,
+                    controller.signal
+                  );
+                } finally {
+                  if (webPartControllersRef.current.get(id) === controller) {
+                    webPartControllersRef.current.delete(id);
+                  }
                 }
-              );
+              } else {
+                result = await uploadPart(
+                  partUrl.uploadUrl,
+                  file.uri,
+                  partNumber,
+                  startByte,
+                  endByte,
+                  file.type,
+                  reportProgress
+                );
+              }
               await recordMultipartPart(
                 session.result.multipartUploadId,
                 result.partNumber,
@@ -473,7 +622,14 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
   );
 
   startPendingRef.current = () => {
-    if (!batchActiveRef.current || pauseRequestedRef.current) return;
+    if (
+      !batchActiveRef.current ||
+      pauseRequestedRef.current ||
+      pageHiddenRef.current ||
+      (Platform.OS === 'web' && disposedRef.current)
+    ) {
+      return;
+    }
     while (activeItemsRef.current.size < APP_LIMITS.MAX_CONCURRENT_UPLOADS) {
       const next = queueRef.current.find((item) => item.status === 'waiting');
       if (!next) break;
@@ -485,8 +641,10 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
         if (!hasWaiting && activeItemsRef.current.size === 0) {
           batchActiveRef.current = false;
           pauseRequestedRef.current = false;
+          pageHiddenRef.current = false;
           if (!disposedRef.current) setIsPaused(false);
           if (!disposedRef.current) setBatchActive(false);
+          if (sessionsRef.current.size === 0) clearWebUploadMarker();
         } else {
           startPendingRef.current();
         }
@@ -501,6 +659,9 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
     ) {
       return;
     }
+    markWebUploadActive();
+    showKeepScreenOpenAlertOnce();
+    setHasInterruptedUpload(false);
     batchActiveRef.current = true;
     setBatchActive(true);
     startPendingRef.current();
@@ -509,15 +670,15 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
   const togglePause = () => {
     const shouldPause = !pauseRequestedRef.current;
     pauseRequestedRef.current = shouldPause;
-    setIsPaused(shouldPause);
+    setIsPaused(shouldPause || pageHiddenRef.current);
     for (const id of activeItemsRef.current) {
       if (finalizingRef.current.has(id)) continue;
       updateItem(id, (item) => ({
         ...item,
-        status: shouldPause ? 'paused' : 'uploading',
+        status: shouldPause || pageHiddenRef.current ? 'paused' : 'uploading',
       }));
     }
-    if (!shouldPause) startPendingRef.current();
+    if (!shouldPause && !pageHiddenRef.current) startPendingRef.current();
   };
 
   const cancelItem = async (item: QueueItem) => {
@@ -559,6 +720,9 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
     sessionsRef.current.delete(item.id);
     progressUpdatedAtRef.current.delete(item.id);
     publishQueue(queueRef.current.filter((entry) => entry.id !== item.id));
+    if (!batchActiveRef.current && sessionsRef.current.size === 0) {
+      clearWebUploadMarker();
+    }
   };
 
   const retryItem = (item: QueueItem) => {
@@ -571,6 +735,9 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
     if (batchActiveRef.current) {
       startPendingRef.current();
     } else {
+      markWebUploadActive();
+      showKeepScreenOpenAlertOnce();
+      setHasInterruptedUpload(false);
       batchActiveRef.current = true;
       setBatchActive(true);
       startPendingRef.current();
@@ -593,6 +760,7 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
     progressUpdatedAtRef.current.clear();
     publishQueue([]);
     setQueueError(null);
+    clearWebUploadMarker();
     for (const session of pendingSessions) {
       void abortMultipartUpload(session.result.multipartUploadId).catch(() => {
         if (!disposedRef.current) {
@@ -652,9 +820,121 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
     };
   }, [addFiles]);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !batchActive) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [batchActive]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !batchActive) return;
+
+    const releaseWakeLock = () => {
+      const sentinel = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (sentinel && !sentinel.released) {
+        void sentinel.release().catch(() => undefined);
+      }
+    };
+
+    const requestWakeLock = async () => {
+      if (
+        !('wakeLock' in navigator) ||
+        !navigator.wakeLock ||
+        !batchActiveRef.current ||
+        document.visibilityState !== 'visible' ||
+        wakeLockRequestRef.current ||
+        (wakeLockRef.current && !wakeLockRef.current.released)
+      ) {
+        return;
+      }
+
+      wakeLockRequestRef.current = true;
+      try {
+        const sentinel = await navigator.wakeLock.request('screen');
+        if (!batchActiveRef.current || document.visibilityState !== 'visible') {
+          await sentinel.release();
+          return;
+        }
+        wakeLockRef.current = sentinel;
+        sentinel.addEventListener('release', () => {
+          if (wakeLockRef.current === sentinel) wakeLockRef.current = null;
+        });
+      } catch {
+        // Wake Lock is an optional browser capability.
+      } finally {
+        wakeLockRequestRef.current = false;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (!batchActiveRef.current) return;
+        pageHiddenRef.current = true;
+        pageVisibilityVersionRef.current += 1;
+        setIsPaused(true);
+        for (const id of activeItemsRef.current) {
+          statusRefreshIdsRef.current.add(id);
+          updateItem(id, (item) => ({ ...item, status: 'paused' }));
+        }
+        for (const controller of webPartControllersRef.current.values()) {
+          controller.abort();
+        }
+        releaseWakeLock();
+        return;
+      }
+
+      if (pageHiddenRef.current) {
+        pageHiddenRef.current = false;
+        const remainPaused = pauseRequestedRef.current;
+        setIsPaused(remainPaused);
+        for (const id of activeItemsRef.current) {
+          updateItem(id, (item) => ({
+            ...item,
+            status: remainPaused ? 'paused' : 'uploading',
+          }));
+        }
+        if (!remainPaused) startPendingRef.current();
+      }
+      void requestWakeLock();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (document.visibilityState === 'hidden') {
+      handleVisibilityChange();
+    } else {
+      void requestWakeLock();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [batchActive, updateItem]);
+
   useEffect(
     () => () => {
+      if (
+        Platform.OS === 'web' &&
+        (batchActiveRef.current || sessionsRef.current.size > 0)
+      ) {
+        preserveInterruptedMarkerRef.current = true;
+        try {
+          localStorage.setItem(WEB_UPLOAD_ACTIVE_KEY, 'active');
+        } catch {
+          // Uploads do not depend on browser storage; this only enables a restart notice.
+        }
+      }
       disposedRef.current = true;
+      if (Platform.OS === 'web') {
+        for (const controller of webPartControllersRef.current.values()) {
+          controller.abort();
+        }
+      }
       for (const id of activeItemsRef.current) cancelRequestedRef.current.add(id);
       for (const uri of createdObjectUrlsRef.current) URL.revokeObjectURL(uri);
       for (const [id, session] of sessionsRef.current) {
@@ -683,6 +963,17 @@ function NativeBulkUploadQueue({ bucketId, onUploaded }: BulkUploadQueueProps) {
       style={[styles.container, isDragging && styles.dropActive]}
       testID="bulk-upload-queue"
     >
+      {Platform.OS === 'web' && hasInterruptedUpload && (
+        <View style={styles.interruptedBanner}>
+          <Text style={styles.interruptedBannerText}>{WEB_UPLOAD_RESTART_MESSAGE}</Text>
+        </View>
+      )}
+      {Platform.OS === 'web' && batchActive && (
+        <View style={styles.keepScreenBanner}>
+          <Text style={styles.keepScreenBannerText}>{KEEP_SCREEN_OPEN_MESSAGE}</Text>
+        </View>
+      )}
+
       <View style={styles.headingRow}>
         <View>
           <Text style={styles.heading}>Add photos and files</Text>
@@ -963,6 +1254,32 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: tokens.color.border,
+  },
+  keepScreenBanner: {
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: tokens.color.surfaceRaised,
+    borderWidth: 1,
+    borderColor: tokens.color.info,
+  },
+  keepScreenBannerText: {
+    color: tokens.color.info,
+    fontSize: Typography.size.xs,
+    textAlign: 'center',
+  },
+  interruptedBanner: {
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: tokens.color.surfaceRaised,
+    borderWidth: 1,
+    borderColor: tokens.color.warning,
+  },
+  interruptedBannerText: {
+    color: tokens.color.warning,
+    fontSize: Typography.size.xs,
+    textAlign: 'center',
   },
   dropActive: {
     borderColor: tokens.color.primaryText,
